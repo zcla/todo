@@ -12,6 +12,28 @@ footer p {
     margin-bottom: 0px;
 }
 
+#select .list-group button {
+    font-size: .75rem;
+}
+
+#select .indent1 {
+    padding-left: 2rem !important;
+}
+
+#select .indent2 {
+    padding-left: 4rem !important;
+}
+
+#select .indent3 {
+    padding-left: 6rem !important;
+}
+
+#select small {
+    padding-left: 1rem;
+    font-style: italic;
+}
+
+/* TODO Remover daqui pra baixo quando acabar */
 #Tarefa .indent0 {
     /* Não é usado; apenas pra lembrar que o Bootstrap já tem 1rem por padrão. */
     padding-left: 1rem !important;

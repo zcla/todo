@@ -5,6 +5,45 @@ $(document).ready(() => {
 });
 
 class Todo {
+    static TarefaBackend = class {
+        static transformData(tarefas) {
+            function ordena(tarefas, idMae) {
+                let filhos = [];
+                if (idMae) {
+                    filhos = filhos.concat(tarefas.filter((t) => t.idMae == idMae));
+                } else {
+                    filhos = filhos.concat(tarefas.filter((t) => !t.idMae));
+                }
+                let result = [];
+                for (const f of filhos) {
+                    result.push(f);
+                    result = result.concat(ordena(tarefas, f.id));
+                }
+                return result;
+            }
+            const result = [];
+            const sorted = ordena(tarefas);
+            for (const tarefa of sorted) {
+                const fTarefa = {
+                    id: tarefa.id,
+                    nome: tarefa.nome,
+                    notas: tarefa.notas,
+                    idMae: tarefa.idMae,
+                    indent: 0,
+                    idsFilhas: []
+                };
+                if (fTarefa.idMae) {
+                    const tarefaMae = tarefas.find((x) => x.id == fTarefa.idMae);
+                    const fTarefaMae = result.find((fTarefa) => fTarefa.id == tarefaMae.id);
+                    fTarefa.indent = fTarefaMae.indent + 1;
+                    fTarefaMae.idsFilhas.push(fTarefa.id);
+                }
+                result.push(fTarefa);
+            }
+            return result;
+        }
+    }
+
     constructor() {
         const backend = new Backend([
             new Backend.Entity('Tarefa', [
@@ -32,52 +71,21 @@ class Todo {
                 new RegExp(/^\?pagina=Tarefa$/),
                 new Frontend.Crud({
                     entity: {
+                        singularMaiusculo: 'Tarefa',
                         singularMinusculo: 'tarefa',
-                        pluralMaiusculo: 'Tarefas'
+                        pluralMaiusculo: 'Tarefas',
+                        genero: 'a'
                     },
                     backend: {
                         backend: backend,
                         entity: 'Tarefa',
                         transformData: (tarefas) => {
-                            function ordena(tarefas, idMae) {
-                                let filhos = [];
-                                if (idMae) {
-                                    filhos = filhos.concat(tarefas.filter((t) => t.idMae == idMae));
-                                } else {
-                                    filhos = filhos.concat(tarefas.filter((t) => !t.idMae));
-                                }
-                                let result = [];
-                                for (const f of filhos) {
-                                    result.push(f);
-                                    result = result.concat(ordena(tarefas, f.id));
-                                }
-                                return result;
-                            }
-                            const result = [];
-                            const sorted = ordena(tarefas);
-                            for (const tarefa of sorted) {
-                                const fTarefa = {
-                                    id: tarefa.id,
-                                    nome: tarefa.nome,
-                                    notas: tarefa.notas,
-                                    idMae: tarefa.idMae,
-                                    indent: 0,
-                                    idsFilhas: []
-                                };
-                                if (fTarefa.idMae) {
-                                    const tarefaMae = tarefas.find((x) => x.id == fTarefa.idMae);
-                                    const fTarefaMae = result.find((fTarefa) => fTarefa.id == tarefaMae.id);
-                                    fTarefa.indent = fTarefaMae.indent + 1;
-                                    fTarefaMae.idsFilhas.push(fTarefa.id);
-                                }
-                                result.push(fTarefa);
-                            }
-                            return result;
+                            return Todo.TarefaBackend.transformData(tarefas);
                         }
                     },
                     select: {
                         column: {
-                            property: 'nome',
+                            // property: 'nome', // => sem formatar
                             format: (tarefa) => {
                                 let disabled = '';
                                 if (tarefa.idsFilhas.length > 0) {
@@ -115,7 +123,30 @@ class Todo {
                             {
                                 property: 'idMae',
                                 display: 'Tarefa "mãe"',
-                                type: 'select'
+                                type: 'select',
+                                selectData: [
+                                    ['', '']
+                                ],
+                                selectBackend: {
+                                    backend: backend,
+                                    entity: 'Tarefa',
+                                    // valueProperty: 'id',  // => sem formatar
+                                    // textProperty: 'nome', // => sem formatar,
+                                    transformData: (tarefas) => {
+                                        return Todo.TarefaBackend.transformData(tarefas);
+                                    },
+                                    // TODO me adiantei; é para o update
+                                    // isEnabled: (tarefa) => {
+                                    //     return tarefa.id != tarefa.idMae;
+                                    // },
+                                    format: (tarefa) => {
+                                        let indent = '&nbsp;&nbsp;&nbsp;'.repeat(tarefa.indent);
+                                        return {
+                                            value: tarefa.id,
+                                            text: `${indent}${tarefa.nome}`
+                                        }
+                                    }
+                                }
                             }
                         ]
                     }

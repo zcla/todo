@@ -19,7 +19,21 @@ class Frontend {
     }
 
     static Page = class {
+        static addMessage(tipo, titulo, mensagem, selector) {
+            if (!selector) {
+                selector = '#mensagens';
+            }
+            $(selector).append(`
+                <div class="alert alert-${tipo} alert-dismissible">
+                    <b>${titulo}</b>
+                    <div>${mensagem}</div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `);
+        }
+
         go() {
+            // Gambiarra para emular um método abstrato.
             throw "Esse método deve ser sobrescrito!";
         }
     }
@@ -41,7 +55,6 @@ class Frontend {
     // Classe que monta tudo baseando-se na configuração passada.
     static Crud = class extends this.Page {
         #config = null;
-        #id = null;
 
         constructor(config) {
             super();
@@ -78,44 +91,10 @@ class Frontend {
                     <ul class="list-group"></ul>
                 </div>
             `);
-
-            // Modal do CRUD: insert
-            let html = `
-                <div id="modalInsert" class="modal fade" tabindex="-1" aria-labelledby="modalInsertLabel" aria-hidden="true">
-                    <div class="modal-dialog modal-xl">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h1 id="modalInsertLabel" class="modal-title fs-5">Incluir ${this.#config.entity.singularMinusculo}</h1>
-                            </div>
-                            <div class="modal-body">
-                                <div id="modalInsertMensagens" class="mt-3">
-                                </div>
-                                <form>
-            `;
-            for (const input of this.#config.insert.inputs) {
-                // TODO input.type
-                html += `
-                    <div class="mb-3">
-                        <label for="modalInsert${input.property}" class="form-label">${input.display}</label>
-                        <input id="modalInsert${input.property}" type="text" class="form-control">
-                    </div>
-                `;
-            }
-            html += `
-                                </form>
-                            </div>
-                            <div class="modal-footer">
-                                <button id="modalInsertInsert" type="button" class="btn btn-primary">Incluir</button>
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            $('#include').append(html);
             $('#btnInsert').click(this.#onInsertClick.bind(this));
 
-            // outros
+            // Modais do CRUD
+            // TODO Mover para o lugar onde o botão é criado
             const entityNameDisplay = this.#config.entity.singularMinusculo;
             const propertyName = 'propertyName';
             const propertyNameDisplay = 'propertyNameDisplay';
@@ -166,33 +145,123 @@ class Frontend {
             `);
         }
 
-        #onInsertClick(crud) {
+        #onInsertClick() {
+            const awaiter = new Awaiter(() => {
+                $('#modalInsert').modal('show');
+                $('#modalInsertInsert').off();
+                $('#modalInsertInsert').click(this.#onInsertInsertClick.bind(this));
+            });
+
+            let html = `
+                <div id="modalInsert" class="modal fade" tabindex="-1" aria-labelledby="modalInsertLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-xl">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h1 id="modalInsertLabel" class="modal-title fs-5">Incluir ${this.#config.entity.singularMinusculo}</h1>
+                            </div>
+                            <div class="modal-body">
+                                <div id="modalInsertMensagens" class="mt-3">
+                                </div>
+                                <form>
+            `;
+            for (const input of this.#config.insert.inputs) {
+                html += `
+                    <div class="mb-3">
+                        <label for="modalInsert${input.property}" class="form-label">${input.display}</label>
+                `;
+                switch (input.type) {
+                    case 'select':
+                        html += `
+                            <select id="modalInsert${input.property}" class="form-select">
+                        `;
+                        if (input.selectData) {
+                            for (const item of input.selectData) {
+                                html += `
+                                    <option value="${item[0]}">${item[1]}</option>
+                                `;
+                            }
+                        }
+                        if (input.selectBackend) {
+                            awaiter.add(
+                                input.selectBackend.backend.select(input.selectBackend.entity),
+                                (data) => {
+                                    if (input.selectBackend.transformData) {
+                                        data = input.selectBackend.transformData(data);
+                                    }
+                                    for (const item of data) {
+                                        let value = null;
+                                        let text = null;
+                                        let disabled = null;
+                                        if (input.selectBackend.valueProperty) {
+                                            debugger;
+                                            value = item[input.selectBackend.valueProperty];
+                                            text = item[input.selectBackend.textProperty];
+                                        }
+                                        if (input.selectBackend.format) {
+                                            const format = input.selectBackend.format(item);
+                                            value = format.value;
+                                            text = format.text;
+                                        }
+                                        $(`#modalInsert${input.property}`).append(`
+                                            <option value="${value}">${text}</option>
+                                        `);
+                                    }
+                                }
+                            );
+                        }
+                        html += `
+                            </select>
+                        `;
+                        break;
+
+                    case 'text':
+                        html += `
+                            <input id="modalInsert${input.property}" type="text" class="form-control">
+                        `;
+                        break;
+                
+                    default:
+                        throw `Tipo de input "${input.type}" desconhecido.`;
+                        break;
+                }
+                html += `
+                    </div>
+                `;
+            }
+            html += `
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button id="modalInsertInsert" type="button" class="btn btn-primary">Incluir</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            $('#include').append(html);
+
             for (const input of this.#config.insert.inputs) {
                 $(`#modalInsert${input.property}`).val('');
                 
             }
-        //     $.when(this.#setupComboMae(backend, '#modalInsertMae')).then((data) => {
-        //         $('#modalInsertMae').val('');
-                $('#modalInsert').modal('show');
-        //         $('#modalInsertNome').focus();
-        //         $('#modalInsertInsert').off();
-        //         $('#modalInsertInsert').click(() => {
-        //             const tarefa = {
-        //                 nome: $('#modalInsertNome').val(),
-        //                 notas: $('#modalInsertNotas').val(),
-        //                 idMae: $('#modalInsertMae').val()
-        //             };
-        //             $.when(backend.insert('Tarefa', tarefa)).then((data) => {
-        //                 OldFrontend.adicionaMensagem('info', '', `Tarefa incluída.`);
-        //                 $('#modalInsert').modal('hide');
-        //                 this.update(backend);
-        //             }).catch((failFilter) => {
-        //                 for (const msg of failFilter) {
-        //                     OldFrontend.adicionaMensagem('danger', '', msg, '#modalInsertMensagens');
-        //                 }
-        //             });
-        //         });
-        //     });
+            awaiter.await();
+        }
+
+        #onInsertInsertClick() {
+            const item = {};
+            for (const input of this.#config.insert.inputs) {
+                item[input.property] = $(`#modalInsert${input.property}`).val();
+            }
+            $.when(this.#config.backend.backend.insert(this.#config.backend.entity, item)).then((data) => {
+                Frontend.Page.addMessage('info', '', `${this.#config.entity.singularMaiusculo} incluíd${this.#config.entity.genero}.`);
+                $('#modalInsert').modal('hide');
+                this.#select();
+            }).catch((failFilter) => {
+                for (const msg of failFilter) {
+                    Frontend.Page.addMessage('danger', '', msg, '#modalInsertMensagens');
+                }
+            });
         }
 
         #select() {
@@ -200,7 +269,6 @@ class Frontend {
                 if (this.#config.backend.transformData) {
                     data = this.#config.backend.transformData(data);
                 }
-                console.log(data);
                 $('#select .list-group').empty();
                 for (const item of data) {
                     let htmlTarefa = '';
@@ -264,6 +332,7 @@ class Frontend {
     }
 
     constructor(routes) {
+        // TODO Criar os eventos de exportar e importar com base nos backends dos objetos.
         for (const route of routes) {
             if (location.search.match(route.getRegex())) {
                 route.gotoPage();

@@ -1,6 +1,14 @@
 "use strict";
 
 $(document).ready(() => {
+    // Hander geral de erros
+    window.addEventListener('error', (e) => {
+        OldFrontend.adicionaMensagem('danger', `Erro inesperado! ${EmojiUtils.grimacing_face}`, `${e.message}<br>${e.error}`);
+        console.log(e);
+        debugger;
+    });
+
+    // Inicia
     new Todo();
 });
 
@@ -45,113 +53,127 @@ class Todo {
     }
 
     constructor() {
-        const backend = new Backend([
-            new Backend.Entity('Tarefa', [
-                new Backend.Entity.Property('id', {
-                    identity: true
-                }),
-                new Backend.Entity.Property('nome', {
-                    notNull: true
-                }),
-                new Backend.Entity.Property('notas'),
-                new Backend.Entity.Property('idMae')
-            ])
-        ]);
+        const backend = new Backend({
+            id: 'todo',
+            entities: [
+                new Backend.Entity({
+                    name: 'Tarefa',
+                    properties: [
+                        new Backend.Entity.Property({
+                            name: 'id',
+                            identity: true
+                        }),
+                        new Backend.Entity.Property({
+                            name: 'nome',
+                            notNull: true
+                        }),
+                        new Backend.Entity.Property({
+                            name: 'notas'
+                        }),
+                        new Backend.Entity.Property({
+                            name: 'idMae'
+                        })
+                    ]
+                })
+            ]
+        });
 
-        const frontend = new Frontend([
-            new Frontend.Route( // TODO Remover no final
-                new RegExp(/^\?pagina=TarefaOld$/),
-                new Frontend.Custom(
-                    () => {
-                        new OldTodo();
-                    }
-                )
-            ),
-            new Frontend.Route(
-                new RegExp(/^\?pagina=Tarefa$/),
-                new Frontend.Crud({
-                    entity: {
-                        singularMaiusculo: 'Tarefa',
-                        singularMinusculo: 'tarefa',
-                        pluralMaiusculo: 'Tarefas',
-                        genero: 'a'
-                    },
-                    backend: {
+        const tarefas = {
+            inputs: [
+                {
+                    property: 'nome',
+                    display: 'Nome',
+                    type: 'text'
+                },
+                {
+                    property: 'notas',
+                    display: 'Notas',
+                    type: 'text'
+                },
+                {
+                    property: 'idMae',
+                    display: 'Tarefa "mãe"',
+                    type: 'select',
+                    selectData: [
+                        ['', '']
+                    ],
+                    selectBackend: {
                         backend: backend,
                         entity: 'Tarefa',
                         transformData: (tarefas) => {
                             return Todo.TarefaBackend.transformData(tarefas);
+                        },
+                        disabled: (tarefaSelect, tarefaForm) => {
+                            return tarefaSelect.id == tarefaForm.id;
+                        },
+                        // valueProperty: 'id',  // => sem formatar
+                        // textProperty: 'nome'  // => sem formatar,
+                        format: (tarefa) => {
+                            let indent = '&nbsp;&nbsp;&nbsp;'.repeat(tarefa.indent);
+                            return {
+                                value: tarefa.id,
+                                text: `${indent}${tarefa.nome}`
+                            }
                         }
-                    },
-                    select: {
-                        column: {
-                            // property: 'nome', // => sem formatar
-                            format: (tarefa) => {
-                                let disabled = '';
-                                if (tarefa.idsFilhas.length > 0) {
-                                    disabled = 'disabled';
-                                }
-                                let result = `
-                                    <input class="form-check-input me-1" type="checkbox" value="" id="Tarefa_${tarefa.id}"${disabled}>
-                                    <label class="form-check-label" for="Tarefa_${tarefa.id}">${tarefa.nome}</label>
-                                `;
-                                if (tarefa.notas) {
-                                    result += `
-                                        <small>${tarefa.notas}</small>
+                    }
+                }
+            ]
+        };
+
+        const frontend = new Frontend({
+            routes: [
+                new Frontend.Route(
+                    new RegExp(/^\?pagina=Tarefa$/),
+                    new Frontend.Crud({
+                        entity: {
+                            backend: backend,
+                            name: 'Tarefa',
+                            id: 'id',
+                            genero: 'a',
+                            singularMaiusculo: 'Tarefa',
+                            singularMinusculo: 'tarefa',
+                            pluralMaiusculo: 'Tarefas',
+                            transformData: (tarefas) => {
+                                return Todo.TarefaBackend.transformData(tarefas);
+                            }
+                        },
+                        select: {
+                            column: {
+                                // property: 'nome', // => sem formatar
+                                format: (tarefa) => {
+                                    let disabled = '';
+                                    if (tarefa.idsFilhas.length > 0) {
+                                        disabled = 'disabled';
+                                    }
+                                    let result = `
+                                        <input class="form-check-input me-1" type="checkbox" value="" id="Tarefa_${tarefa.id}"${disabled}>
+                                        <label class="form-check-label" for="Tarefa_${tarefa.id}">${tarefa.nome}</label>
+                                    `;
+                                    if (tarefa.notas) {
+                                        result += `
+                                            <small>${tarefa.notas}</small>
+                                        `;
+                                    }
+                                    return `
+                                        <span class="indent${tarefa.indent}">
+                                            ${result}
+                                        </span>
                                     `;
                                 }
-                                return `
-                                    <span class="indent${tarefa.indent}">
-                                        ${result}
-                                    </span>
-                                `;
                             }
+                        },
+                        insert: {
+                            inputs: tarefas.inputs
+                        },
+                        update: {
+                            inputs: tarefas.inputs
+                        },
+                        delete: {
+                            inputs: tarefas.inputs
                         }
-                    },
-                    insert: {
-                        inputs: [
-                            {
-                                property: 'nome',
-                                display: 'Nome',
-                                type: 'text'
-                            },
-                            {
-                                property: 'notas',
-                                display: 'Notas',
-                                type: 'text'
-                            },
-                            {
-                                property: 'idMae',
-                                display: 'Tarefa "mãe"',
-                                type: 'select',
-                                selectData: [
-                                    ['', '']
-                                ],
-                                selectBackend: {
-                                    backend: backend,
-                                    entity: 'Tarefa',
-                                    // valueProperty: 'id',  // => sem formatar
-                                    // textProperty: 'nome', // => sem formatar,
-                                    transformData: (tarefas) => {
-                                        return Todo.TarefaBackend.transformData(tarefas);
-                                    },
-                                    // TODO me adiantei; é para o update
-                                    // isEnabled: (tarefa) => {
-                                    //     return tarefa.id != tarefa.idMae;
-                                    // },
-                                    format: (tarefa) => {
-                                        let indent = '&nbsp;&nbsp;&nbsp;'.repeat(tarefa.indent);
-                                        return {
-                                            value: tarefa.id,
-                                            text: `${indent}${tarefa.nome}`
-                                        }
-                                    }
-                                }
-                            }
-                        ]
-                    }
-                })
-            )
-        ]);
+                    })
+                )
+            ]
+        });
     }
 }

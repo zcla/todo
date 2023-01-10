@@ -63,116 +63,168 @@ class Frontend {
             // Obrigatórias
             if (!config.entity.singularMinusculo ||
                 !config.entity.pluralMaiusculo ||
-                !config.backend.backend ||
-                !config.backend.entity) {
+                !config.entity.backend ||
+                !config.entity.name) {
                 throw "Faltam elementos obrigatórios!";
             }
+
+            // Menu "Dados"
+            const backend = this.#config.entity.backend;
+            $('#backend_exportar').click(() => {
+                backend.export();
+            });
+            $('#backend_importar').click(() => {
+                $('#storageUpload').removeClass('d-none');
+            });
+            $('#storageUpload').change(() => {
+                $('#storageUpload').addClass('d-none');
+                $('#storageUploadSpinner').removeClass('d-none');
+                const file = $('#storageUpload input')[0].files[0];
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const result = JSON.parse(event.target.result);
+                    backend.import(result);
+                    $('#storageUploadSpinner').addClass('d-none');
+                    $('#storageUpload input').val(null);
+                    window.location.reload();
+                }
+                reader.readAsText(file);
+            });
+            $('#backend_limpar').click(() => {
+                backend.clearAllData();
+                window.location.reload();
+            });
+   
         }
 
         go() {
-            this.#setupHtml();
             this.#select();
         }
 
-        #setupHtml() {
+        #select() {
+            $('#conteudo').empty();
+
             // Adiciona o título
             $('#conteudo').append(`
                 <h1>${this.#config.entity.pluralMaiusculo}</h1>
             `);
 
             // Adiciona o toolbar
-            $('#conteudo').append(`
+            let html = `
                 <div id="select" class="mb-3">
                     <div class="btn-toolbar mb-3">
                         <div class="btn-group">
-                            <button id="btnInsert" type="button" class="btn btn-primary">Incluir</button>
+            `;
+            if (this.#config.insert) {
+                html += `
+                    <button id="btnInsert" type="button" class="btn btn-primary">Incluir</button>
+                `;
+            }
+            html += `
                         </div>
                     </div>
                     <ul class="list-group"></ul>
                 </div>
-            `);
-            $('#btnInsert').click(this.#onInsertClick.bind(this));
+            `;
+            $('#conteudo').append(html);
+            $('#btnInsert').click(this.#onCrudClick.bind(this, 'insert', {}));
 
-            // Modais do CRUD
-            // TODO Mover para o lugar onde o botão é criado
-            const entityNameDisplay = this.#config.entity.singularMinusculo;
-            const propertyName = 'propertyName';
-            const propertyNameDisplay = 'propertyNameDisplay';
-            $('#include').append(`
-                <div id="modalAlterar" class="modal fade" tabindex="-1" aria-labelledby="modalAlterarLabel" aria-hidden="true">
-                    <div class="modal-dialog modal-xl">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h1 id="modalAlterarLabel" class="modal-title fs-5">Alterar ${entityNameDisplay}</h1>
-                            </div>
-                            <div class="modal-body">
-                                <div id="modalAlterarMensagens" class="mt-3">
-                                </div>
-                                <form>
-                                    <div class="mb-3">
-                                        <label for="modalAlterar${propertyName}" class="form-label">${propertyNameDisplay}</label>
-                                        <input id="modalAlterar${propertyName}" type="text" class="form-control">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="modalAlterar${propertyName}" class="form-label">${propertyNameDisplay}</label>
-                                        <select id="modalAlterar${propertyName}" class="form-select"></select>
-                                    </div>
-                                </form>
-                            </div>
-                            <div class="modal-footer">
-                                <button id="modalAlterarAlterar" type="button" class="btn btn-primary">Alterar</button>
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div id="modalExcluir" class="modal fade" tabindex="-1" aria-labelledby="modalExcluirLabel" aria-hidden="true">
-                    <div class="modal-dialog modal-xl">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h1 id="modalExcluirLabel" class="modal-title fs-5">Excluir ${entityNameDisplay}</h1>
-                            </div>
-                            <div class="modal-body">
-                                Confirma a exclusão?
-                            </div>
-                            <div class="modal-footer">
-                                <button id="modalExcluirExcluir" type="button" class="btn btn-danger">Excluir</button>
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `);
+            $.when(this.#config.entity.backend.select(this.#config.entity.name)).then((data) => {
+                if (this.#config.entity.transformData) {
+                    data = this.#config.entity.transformData(data);
+                }
+                $('#select .list-group').empty();
+                for (const item of data) {
+                    let html = `
+                        <li class="list-group-item">
+                    `;
+                    if (this.#config.select.column.property) {
+                        html += `
+                            ${item[this.#config.select.column.property]}
+                        `;
+                    }
+                    if (this.#config.select.column.format) {
+                        html += `
+                            ${this.#config.select.column.format(item)}
+                        `;
+                    }
+                    const id = item[this.#config.entity.id];
+                    if (this.#config.delete) {
+                        html += `
+                            <button id="btnDelete_${id}" type="button" class="btn btn-sm btn-danger float-end">Excluir</button>
+                        `;
+                    }
+                    if (this.#config.update) {
+                        html += `
+                            <button id="btnUpdate_${id}" type="button" class="btn btn-sm btn-primary float-end me-2">Alterar</button>
+                        `;
+                    }
+                    html += `
+                        </li>
+                    `;
+                    $('#select .list-group').append(html);
+                    $(`#btnUpdate_${id}`).click(this.#onCrudClick.bind(this, 'update', item));
+                    $(`#btnDelete_${id}`).click(this.#onCrudClick.bind(this, 'delete', item));
+                }
+            });
         }
 
-        #onInsertClick() {
+        #onCrudClick(qual, item) {
+            let verbo = null;
+            let bgColor = 'primary';
+            let inputs = null;
+            let disabled = '';
+            switch (qual) {
+                case 'insert':
+                    verbo = 'Incluir';
+                    inputs = this.#config.insert.inputs;
+                    break;
+
+                case 'update':
+                    verbo = 'Alterar';
+                    inputs = this.#config.update.inputs;
+                    break;
+
+                case 'delete':
+                    verbo = 'Excluir';
+                    bgColor = 'danger';
+                    inputs = this.#config.delete.inputs;
+                    disabled = ' disabled';
+                    break;
+            
+                default:
+                    throw `Operação desconhecida: "${qual}"`;
+                    break;
+            }
+
             const awaiter = new Awaiter(() => {
-                $('#modalInsert').modal('show');
-                $('#modalInsertInsert').off();
-                $('#modalInsertInsert').click(this.#onInsertInsertClick.bind(this));
+                $('#modalCrud').modal('show');
+                $('#modalCrudOk').off();
+                $('#modalCrudOk').click(this.#onCrudOkClick.bind(this, qual, item));
             });
 
             let html = `
-                <div id="modalInsert" class="modal fade" tabindex="-1" aria-labelledby="modalInsertLabel" aria-hidden="true">
+                <div id="modalCrud" class="modal fade" tabindex="-1" aria-labelledby="modalCrudLabel" aria-hidden="true">
                     <div class="modal-dialog modal-xl">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h1 id="modalInsertLabel" class="modal-title fs-5">Incluir ${this.#config.entity.singularMinusculo}</h1>
+                                <h1 id="modalCrudLabel" class="modal-title fs-5">${verbo} ${this.#config.entity.singularMinusculo}</h1>
                             </div>
                             <div class="modal-body">
-                                <div id="modalInsertMensagens" class="mt-3">
+                                <div id="modalCrudMensagens" class="mt-3">
                                 </div>
                                 <form>
             `;
-            for (const input of this.#config.insert.inputs) {
+            for (const input of inputs) {
                 html += `
                     <div class="mb-3">
-                        <label for="modalInsert${input.property}" class="form-label">${input.display}</label>
+                        <label for="modalCrud${input.property}" class="form-label">${input.display}</label>
                 `;
                 switch (input.type) {
                     case 'select':
+                        $(`#modalCrud${input.property}`).empty();
                         html += `
-                            <select id="modalInsert${input.property}" class="form-select">
+                            <select id="modalCrud${input.property}" class="form-select"${disabled}>
                         `;
                         if (input.selectData) {
                             for (const item of input.selectData) {
@@ -188,24 +240,27 @@ class Frontend {
                                     if (input.selectBackend.transformData) {
                                         data = input.selectBackend.transformData(data);
                                     }
-                                    for (const item of data) {
+                                    for (const itemSelect of data) {
                                         let value = null;
                                         let text = null;
                                         let disabled = null;
+                                        if (input.selectBackend.disabled) {
+                                            disabled = input.selectBackend.disabled(itemSelect, item) ? ' disabled' : null;
+                                        }
                                         if (input.selectBackend.valueProperty) {
-                                            debugger;
-                                            value = item[input.selectBackend.valueProperty];
-                                            text = item[input.selectBackend.textProperty];
+                                            value = itemSelect[input.selectBackend.valueProperty];
+                                            text = itemSelect[input.selectBackend.textProperty];
                                         }
                                         if (input.selectBackend.format) {
-                                            const format = input.selectBackend.format(item);
+                                            const format = input.selectBackend.format(itemSelect);
                                             value = format.value;
                                             text = format.text;
                                         }
-                                        $(`#modalInsert${input.property}`).append(`
-                                            <option value="${value}">${text}</option>
+                                        $(`#modalCrud${input.property}`).append(`
+                                            <option value="${value}"${disabled}>${text}</option>
                                         `);
                                     }
+                                    $(`#modalCrud${input.property}`).val(item[input.property]);
                                 }
                             );
                         }
@@ -216,10 +271,10 @@ class Frontend {
 
                     case 'text':
                         html += `
-                            <input id="modalInsert${input.property}" type="text" class="form-control">
+                            <input id="modalCrud${input.property}" type="text" class="form-control"${disabled}>
                         `;
                         break;
-                
+
                     default:
                         throw `Tipo de input "${input.type}" desconhecido.`;
                         break;
@@ -232,108 +287,87 @@ class Frontend {
                                 </form>
                             </div>
                             <div class="modal-footer">
-                                <button id="modalInsertInsert" type="button" class="btn btn-primary">Incluir</button>
+                                <button id="modalCrudOk" type="button" class="btn btn-${bgColor}">${verbo}</button>
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                             </div>
                         </div>
                     </div>
                 </div>
             `;
-            $('#include').append(html);
+            $('#modais').empty();
+            $('#modais').append(html);
 
-            for (const input of this.#config.insert.inputs) {
-                $(`#modalInsert${input.property}`).val('');
-                
+            for (const input of inputs) {
+                $(`#modalCrud${input.property}`).val(item[input.property]);
             }
+
             awaiter.await();
         }
 
-        #onInsertInsertClick() {
-            const item = {};
-            for (const input of this.#config.insert.inputs) {
-                item[input.property] = $(`#modalInsert${input.property}`).val();
+        #onCrudOkClick(qual, item) {
+            let inputs = null;
+            let adjetivo = null;
+            switch (qual) {
+                case 'insert':
+                    inputs = this.#config.insert.inputs;
+                    adjetivo = `incluíd${this.#config.entity.genero}`;
+                    break;
+
+                case 'update':
+                    inputs = this.#config.update.inputs;
+                    adjetivo = `alterad${this.#config.entity.genero}`;
+                    break;
+
+                case 'delete':
+                    inputs = [];
+                    adjetivo = `excluíd${this.#config.entity.genero}`;
+                    break;
+            
+                default:
+                    throw `Operação desconhecida: "${qual}"`;
+                    break;
             }
-            $.when(this.#config.backend.backend.insert(this.#config.backend.entity, item)).then((data) => {
-                Frontend.Page.addMessage('info', '', `${this.#config.entity.singularMaiusculo} incluíd${this.#config.entity.genero}.`);
-                $('#modalInsert').modal('hide');
+
+            for (const input of inputs) {
+                item[input.property] = $(`#modalCrud${input.property}`).val();
+            }
+            
+            let promise = null;
+            switch (qual) {
+                case 'insert':
+                    promise = this.#config.entity.backend.insert(this.#config.entity.name, item);
+                    break;
+
+                case 'update':
+                    promise = this.#config.entity.backend.update(this.#config.entity.name, item, this.#config.entity.id);
+                    break;
+
+                case 'delete':
+                    promise = this.#config.entity.backend.delete(this.#config.entity.name, 'id', item.id);
+                    break;
+            
+                default:
+                    throw `Operação desconhecida: "${qual}"`;
+                    break;
+            }
+
+            $.when(promise).then((data) => {
+                Frontend.Page.addMessage('info', '', `${this.#config.entity.singularMaiusculo} ${adjetivo}.`);
+                $('#modalCrud').modal('hide');
                 this.#select();
             }).catch((failFilter) => {
+                if (!Array.isArray(failFilter)) {
+                    failFilter = [failFilter];
+                }
                 for (const msg of failFilter) {
-                    Frontend.Page.addMessage('danger', '', msg, '#modalInsertMensagens');
-                }
-            });
-        }
-
-        #select() {
-            $.when(this.#config.backend.backend.select(this.#config.backend.entity)).then((data) => {
-                if (this.#config.backend.transformData) {
-                    data = this.#config.backend.transformData(data);
-                }
-                $('#select .list-group').empty();
-                for (const item of data) {
-                    let htmlTarefa = '';
-                    if (this.#config.select.column.property) {
-                        htmlTarefa = item[this.#config.select.column.property];
-                    }
-                    if (this.#config.select.column.format) {
-                        htmlTarefa = this.#config.select.column.format(item);
-                    }
-                    $('#select .list-group').append(`
-                        <li class="list-group-item">
-                            ${htmlTarefa}
-                            <button id="TarefaExcluir_${'tarefa.id'}" type="button" class="btn btn-sm btn-danger float-end">Excluir</button>
-                            <button id="TarefaAlterar_${'tarefa.id'}" type="button" class="btn btn-sm btn-primary float-end me-2">Alterar</button>
-                        </li>
-                    `);
-
-            //         $(`#TarefaAlterar_${tarefa.id}`).click(() => {
-            //             $('#tarefaAlterarNome').val(tarefa.nome);
-            //             $('#tarefaAlterarNotas').val(tarefa.notas);
-            //             $.when(this.#setupComboMae(backend, '#tarefaAlterarMae')).then((data) => {
-            //                 $('#tarefaAlterarMae').val(tarefa.idMae);
-            //                 $('#tarefaAlterar').modal('show');
-            //                 $('#tarefaAlterarNome').focus();
-            //                 $('#tarefaAlterarAlterar').off();
-            //                 $('#tarefaAlterarAlterar').click(() => {
-            //                     const alterar = {
-            //                         id: tarefa.id,
-            //                         nome: $('#tarefaAlterarNome').val(),
-            //                         notas: $('#tarefaAlterarNotas').val(),
-            //                         idMae: $('#tarefaAlterarMae').val()
-            //                     };
-            //                     $.when(backend.update('Tarefa', alterar, 'id')).then((data) => {
-            //                         OldFrontend.adicionaMensagem('info', '', `Tarefas alteradas: ${data}.`);
-            //                         $('#tarefaAlterar').modal('hide');
-            //                         this.update(backend);
-            //                     }).catch((failFilter) => {
-            //                         for (const msg of failFilter) {
-            //                             OldFrontend.adicionaMensagem('danger', '', msg, '#tarefaAlterarMensagens');
-            //                         }
-            //                     });
-            //                 });
-            //             });
-            //         });
-            //         $(`#TarefaExcluir_${tarefa.id}`).click(() => {
-            //             $('#tarefaExcluir .modal-body').empty();
-            //             $('#tarefaExcluir .modal-body').append(htmlTarefa);
-            //             $('#tarefaExcluir').modal('show');
-            //             $('#tarefaExcluirExcluir').off();
-            //             $('#tarefaExcluirExcluir').click(() => {
-            //                 $.when(backend.delete('Tarefa', 'id', tarefa.id)).then((data) => {
-            //                     $('#tarefaExcluir').modal('hide');
-            //                     this.update(backend);
-            //                     OldFrontend.adicionaMensagem('info', '', `Tarefas excluídas: ${data}.`);
-            //                 });
-            //             });
-            //         });
+                    Frontend.Page.addMessage('danger', '', msg, '#modalCrudMensagens');
                 }
             });
         }
     }
 
-    constructor(routes) {
-        // TODO Criar os eventos de exportar e importar com base nos backends dos objetos.
-        for (const route of routes) {
+    constructor(config) {
+        for (const route of config.routes) {
             if (location.search.match(route.getRegex())) {
                 route.gotoPage();
                 return;

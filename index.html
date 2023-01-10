@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- TODO Colocar no código tudo o que for possível. -->
 <html lang="pt-br">
 	<head>
 		<meta charset="utf-8">
@@ -15,7 +16,6 @@
 		<script src="js/backend.js"></script>
 		<script src="js/frontend.js"></script>
 		<script src="js/utils.js"></script>
-		<!-- TODO Remover no final --><script src="js/old.js"></script>
 
 		<script src="js/todo.js"></script>
 	</head>
@@ -30,9 +30,6 @@
 					<ul class="navbar-nav me-auto mb-2 mb-sm-0">
 						<li class="nav-item">
 							<a class="nav-link" href="?pagina=Tarefa">Tarefas</a>
-						</li>
-						<li class="nav-item">
-							<a class="nav-link" href="?pagina=TarefaOld">Versão antiga</a>
 						</li>
 					</ul>
 					<ul id="storageUploadSpinner" class="navbar-nav mb-2 mb-sm-0 text-end d-none">
@@ -61,8 +58,6 @@
 		<footer class="bg-dark">
 			<p class="text-center text-white">Este código é livre e pode ser baixado do <a href="https://github.com/zcla/todo" target="_blank">GitHub<img class="align-text-bottom" src="img/linkExterno.svg"></a>.</p>
 		</footer>
-		<div id="include">
-			<!-- Trocar o nome para modais -->
-		</div>
+		<div id="modais"></div>
 	</body>
 </html>

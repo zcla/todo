@@ -3,37 +3,23 @@
 class Backend {
     static Entity = class {
         static Property = class {
-            #name = null;
-            getName() {
-                return this.#name;
+            constructor(config) {
+                this.#config = config;
             }
-    
+            
             #config = {};
-            isIdentity() {
-                return this.#config.identity;
-            }
-            isNotNull() {
-                return this.#config.notNull;
-            }
-        
-            constructor(name, config) {
-                this.#name = name;
-                if (config) {
-                    this.#config = config;
-                }
+            getConfig() {
+                return this.#config;
             }
         }
 
-        #name = null;
-        getName() {
-            return this.#name;
+        constructor(config) {
+            this.#config = config;
         }
 
-        #properties = null;
-
-        constructor(name, properties) {
-            this.#name = name;
-            this.#properties = properties;
+        #config = null;
+        getConfig() {
+            return this.#config;
         }
 
         #newId() {
@@ -43,8 +29,12 @@ class Backend {
             );
         }
 
+        drop() {
+            localStorage.removeItem(this.#config.name);
+        }
+
         load() {
-            const json = localStorage[this.#name];
+            const json = localStorage[this.#config.name];
             if (json === undefined) {
                 return [];
             }
@@ -57,11 +47,11 @@ class Backend {
                 throw [`Invalid operation "${operation}".`];
             }
             const result = {};
-            for (const property of this.#properties) {
-                const propertyName = property.getName();
+            for (const property of this.#config.properties) {
+                const propertyName = property.getConfig().name;
                 let value = data[propertyName];
 
-                if (property.isIdentity()) {
+                if (property.getConfig().identity) {
                     switch (operation) {
                         case 'insert':
                             if (value) {
@@ -85,7 +75,7 @@ class Backend {
                 if (value) {
                     result[propertyName] = value;
                 } else {
-                    if (property.isNotNull()) {
+                    if (property.getConfig().notNull) {
                         erros.push(`Property "${propertyName}" cannot be null.`);
                     }
                 }
@@ -97,18 +87,21 @@ class Backend {
         }
 
         save(entities) {
-            localStorage[this.#name] = JSON.stringify(entities);
+            localStorage[this.#config.name] = JSON.stringify(entities);
         }
     }
 
-    constructor(entities) {
-        this.#entities = entities;
+    constructor(config) {
+        this.#config = config;
     }
 
-    #entities = null;
+    #config = null;
+    getConfig() {
+        return this.#config;
+    }
 
     #getEntityByName(entityName) {
-        return this.#entities.find((entity) => entity.getName() == entityName);
+        return this.#config.entities.find((entity) => entity.getConfig().name == entityName);
     }
 
     async insert(entityName, entityProperties) {
@@ -141,7 +134,7 @@ class Backend {
         }
         
         const entities = entity.load();
-        const oldEntity = entities.filter((e) => e[idProperty] == entityProperties[idProperty]);
+        const oldEntity = entities.filter((entity) => entity[idProperty] == entityProperties[idProperty]);
         if (oldEntity.length == 0) {
             throw `Entity "${entityName}" doesn't have an element with ${idProperty} = "${entityProperties[idProperty]}".`;
         }
@@ -164,21 +157,27 @@ class Backend {
         
         const entities = entity.load();
         const restantes = entities.filter((entity) => entity[idProperty] != idValue);
+        if (entities.length - restantes.length == 0) {
+            throw `Entity "${entityName}" doesn't have an element with ${idProperty} = "${entityProperties[idProperty]}".`;
+        }
+        if (entities.length - restantes.length > 1) {
+            throw `Entity "${entityName}" has more than one element with ${idProperty} = "${entityProperties[idProperty]}".`;
+        }
         entity.save(restantes);
         return entities.length - restantes.length;
     }
 
-    export(fileNamePrefix) {
+    export() {
         const result = {};
-        for (const entity of this.#entities){
-            result[entity.getName()] = entity.load();
+        for (const entity of this.#config.entities){
+            result[entity.getConfig().name] = entity.load();
         }
-        StringUtils.downloadString(JSON.stringify(result), `${fileNamePrefix}.${DateUtils.formatYYYYMMDDHHNNSS(new Date())}.json`);
+        StringUtils.downloadString(JSON.stringify(result), `${this.#config.id}.${DateUtils.formatYYYYMMDDHHNNSS(new Date())}.json`);
     }
 
     import(data) {
-        for (const entity of this.#entities){
-            const key = entity.getName();
+        for (const entity of this.#config.entities){
+            const key = entity.getConfig().name;
             if (data[key]) {
                 // TODO Na verdade, aqui seria melhor validar cada um (se existe, update; se não existe, insert)
                 entity.save(data[key]);
@@ -186,9 +185,9 @@ class Backend {
         }
     }
 
-    dropDatabase() {
-        for (const entity of this.#entities){
-            entity.save(null);
+    clearAllData() {
+        for (const entity of this.#config.entities){
+            entity.drop();
         }
     }
 }

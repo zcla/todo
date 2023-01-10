@@ -32,30 +32,3 @@ footer p {
     padding-left: 1rem;
     font-style: italic;
 }
-
-/* TODO Remover daqui pra baixo quando acabar */
-#Tarefa .indent0 {
-    /* Não é usado; apenas pra lembrar que o Bootstrap já tem 1rem por padrão. */
-    padding-left: 1rem !important;
-}
-
-#Tarefa .indent1 {
-    padding-left: 3rem !important;
-}
-
-#Tarefa .indent2 {
-    padding-left: 5rem !important;
-}
-
-#Tarefa .indent3 {
-    padding-left: 7rem !important;
-}
-
-#Tarefa small {
-    padding-left: 1rem;
-    font-style: italic;
-}
-
-#Tarefa .list-group button {
-    font-size: .75rem;
-}

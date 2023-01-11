@@ -3,9 +3,8 @@
 $(document).ready(() => {
     // Hander geral de erros
     window.addEventListener('error', (e) => {
-        OldFrontend.adicionaMensagem('danger', `Erro inesperado! ${EmojiUtils.grimacing_face}`, `${e.message}<br>${e.error}`);
-        console.log(e);
-        debugger;
+        Frontend.Page.addMessage('danger', `Erro inesperado! ${EmojiUtils.grimacing_face}`, `${e.error.stack.replace('\n', '<br>')}`);
+        console.debug(e);
     });
 
     // Inicia
@@ -59,10 +58,6 @@ class Todo {
                 new Backend.Entity({
                     name: 'Tarefa',
                     properties: [
-                        new Backend.Entity.Property({
-                            name: 'id',
-                            identity: true
-                        }),
                         new Backend.Entity.Property({
                             name: 'nome',
                             notNull: true
@@ -128,7 +123,6 @@ class Todo {
                         entity: {
                             backend: backend,
                             name: 'Tarefa',
-                            id: 'id',
                             genero: 'a',
                             singularMaiusculo: 'Tarefa',
                             singularMinusculo: 'tarefa',
@@ -138,29 +132,32 @@ class Todo {
                             }
                         },
                         select: {
-                            column: {
-                                // property: 'nome', // => sem formatar
-                                format: (tarefa) => {
-                                    let disabled = '';
-                                    if (tarefa.idsFilhas.length > 0) {
-                                        disabled = 'disabled';
-                                    }
-                                    let result = `
-                                        <input class="form-check-input me-1" type="checkbox" value="" id="Tarefa_${tarefa.id}"${disabled}>
-                                        <label class="form-check-label" for="Tarefa_${tarefa.id}">${tarefa.nome}</label>
-                                    `;
-                                    if (tarefa.notas) {
-                                        result += `
-                                            <small>${tarefa.notas}</small>
+                            columns: [
+                                {
+                                    titulo: 'Tarefa',
+                                    // property: 'nome', // => sem formatar
+                                    format: (tarefa) => {
+                                        let disabled = '';
+                                        if (tarefa.idsFilhas.length > 0) {
+                                            disabled = 'disabled';
+                                        }
+                                        let result = `
+                                            <input class="form-check-input me-1" type="checkbox" value="" id="Tarefa_check_${tarefa.id}"${disabled}>
+                                            <label class="form-check-label" for="Tarefa_check_${tarefa.id}">${tarefa.nome}</label>
+                                        `;
+                                        if (tarefa.notas) {
+                                            result += `
+                                                <small>${tarefa.notas}</small>
+                                            `;
+                                        }
+                                        return `
+                                            <span class="indent${tarefa.indent}">
+                                                ${result}
+                                            </span>
                                         `;
                                     }
-                                    return `
-                                        <span class="indent${tarefa.indent}">
-                                            ${result}
-                                        </span>
-                                    `;
                                 }
-                            }
+                            ]
                         },
                         insert: {
                             inputs: tarefas.inputs

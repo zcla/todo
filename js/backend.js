@@ -6,7 +6,7 @@ class Backend {
             constructor(config) {
                 this.#config = config;
             }
-            
+
             #config = {};
             getConfig() {
                 return this.#config;
@@ -15,6 +15,12 @@ class Backend {
 
         constructor(config) {
             this.#config = config;
+            this.#config.properties.unshift(
+                new Backend.Entity.Property({
+                    name: 'id',
+                    identity: true
+                })
+            );
         }
 
         #config = null;
@@ -125,43 +131,42 @@ class Backend {
         return entity.load();
     }
 
-    async update(entityName, entityProperties, idProperty) {
-        // TODO receber o filtro como parâmetro
-        // TODO atualizar só as propriedades que vêm em entityProperties
+    async update(entityName, properties) {
         const entity = this.#getEntityByName(entityName);
         if (!entity) {
             throw `Entity "${entityName}" not found.`;
         }
         
         const entities = entity.load();
-        const oldEntity = entities.filter((entity) => entity[idProperty] == entityProperties[idProperty]);
-        if (oldEntity.length == 0) {
-            throw `Entity "${entityName}" doesn't have an element with ${idProperty} = "${entityProperties[idProperty]}".`;
+        let filtered = entities.filter((entity) => entity.id == properties.id);
+        if (filtered.length == 0) {
+            throw `Entity "${entityName}" doesn't have an element with id = "${properties.id}".`;
         }
-        if (oldEntity.length > 1) {
-            throw `Entity "${entityName}" has more than one element with ${idProperty} = "${entityProperties[idProperty]}".`;
+        if (filtered.length > 1) {
+            throw `Entity "${entityName}" has more than one element with id = "${properties.id}".`;
         }
-        // TODO Atualmente substitui completamente o objeto. Possibilidade: apenas alterar a oldEntity com os dados em entityProperties (assim dá pra fazer update em uma propriedade só)
-        const newEntity = entity.validate('update', entityProperties);
-        entities[entities.indexOf(oldEntity[0])] = newEntity;
+        const oldEntity = filtered[0];
+        const newEntity = entity.validate('update', properties);
+        for (const key of Object.keys(oldEntity)) {
+            oldEntity[key] = newEntity[key];
+        }
         entity.save(entities);
         return 1;
     }
 
-    async delete(entityName, idProperty, idValue) {
-        // TODO receber o filtro como parâmetro
+    async delete(entityName, properties) {
         const entity = this.#getEntityByName(entityName);
         if (!entity) {
             throw `Entity "${entityName}" not found.`;
         }
         
         const entities = entity.load();
-        const restantes = entities.filter((entity) => entity[idProperty] != idValue);
+        const restantes = entities.filter((entity) => entity.id != properties.id);
         if (entities.length - restantes.length == 0) {
-            throw `Entity "${entityName}" doesn't have an element with ${idProperty} = "${entityProperties[idProperty]}".`;
+            throw `Entity "${entityName}" doesn't have an element with id = "${properties.id}".`;
         }
         if (entities.length - restantes.length > 1) {
-            throw `Entity "${entityName}" has more than one element with ${idProperty} = "${entityProperties[idProperty]}".`;
+            throw `Entity "${entityName}" has more than one element with id = "${properties.id}".`;
         }
         entity.save(restantes);
         return entities.length - restantes.length;

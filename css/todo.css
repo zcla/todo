@@ -12,8 +12,14 @@ footer p {
     margin-bottom: 0px;
 }
 
-#select .list-group button {
-    font-size: .75rem;
+#select .botoes {
+    padding: 0;
+    white-space: nowrap;
+    width: 0;
+}
+
+#select .botoes button {
+    font-size: .9rem;
 }
 
 #select .indent1 {

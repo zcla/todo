@@ -38,20 +38,6 @@ class Frontend {
         }
     }
 
-    // Classe que não monta absolutamente nada; todo o trabalho deve ser feito a partir do callback.
-    static Custom = class extends this.Page {
-        #callback = null;
-
-        constructor(callback) {
-            super();
-            this.#callback = callback;
-        }
-
-        go() {
-            this.#callback();
-        }
-    }
-
     // Classe que monta tudo baseando-se na configuração passada.
     static Crud = class extends this.Page {
         #config = null;
@@ -111,60 +97,79 @@ class Frontend {
 
             // Adiciona o toolbar
             let html = `
-                <div id="select" class="mb-3">
-                    <div class="btn-toolbar mb-3">
+                    <div class="btn-toolbar float-end">
                         <div class="btn-group">
             `;
             if (this.#config.insert) {
                 html += `
-                    <button id="btnInsert" type="button" class="btn btn-primary">Incluir</button>
+                    <button id="btnInsert" type="button" class="btn bg-success-subtle" title="Incluir">${EmojiUtils.plus}</button>
                 `;
             }
             html += `
                         </div>
                     </div>
-                    <ul class="list-group"></ul>
-                </div>
             `;
-            $('#conteudo').append(html);
+            $('#conteudo h1').append(html);
             $('#btnInsert').click(this.#onCrudClick.bind(this, 'insert', {}));
+
+            $('#conteudo').append(`
+                <div id="select" class="mb-3">
+                    <table class="table table-sm table-bordered table-hover">
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            `);
 
             $.when(this.#config.entity.backend.select(this.#config.entity.name)).then((data) => {
                 if (this.#config.entity.transformData) {
                     data = this.#config.entity.transformData(data);
                 }
-                $('#select .list-group').empty();
+                $('#select tbody').empty();
                 for (const item of data) {
                     let html = `
-                        <li class="list-group-item">
+                        <tr id="${this.#config.entity.name}_${item.id}">
                     `;
-                    if (this.#config.select.column.property) {
+                    for (const column of this.#config.select.columns) {
                         html += `
-                            ${item[this.#config.select.column.property]}
+                            <td>
                         `;
-                    }
-                    if (this.#config.select.column.format) {
+                        if (column.property) {
+                            html += `
+                                ${item[column.property]}
+                            `;
+                        }
+                        if (column.format) {
+                            html += `
+                                ${column.format(item)}
+                            `;
+                        }
                         html += `
-                            ${this.#config.select.column.format(item)}
-                        `;
-                    }
-                    const id = item[this.#config.entity.id];
-                    if (this.#config.delete) {
-                        html += `
-                            <button id="btnDelete_${id}" type="button" class="btn btn-sm btn-danger float-end">Excluir</button>
-                        `;
-                    }
-                    if (this.#config.update) {
-                        html += `
-                            <button id="btnUpdate_${id}" type="button" class="btn btn-sm btn-primary float-end me-2">Alterar</button>
+                            </td>
                         `;
                     }
                     html += `
-                        </li>
+                        <td class="botoes">
+                            <div class="btn-group" role="group">
                     `;
-                    $('#select .list-group').append(html);
-                    $(`#btnUpdate_${id}`).click(this.#onCrudClick.bind(this, 'update', item));
-                    $(`#btnDelete_${id}`).click(this.#onCrudClick.bind(this, 'delete', item));
+                    if (this.#config.update) {
+                        html += `
+                            <button id="btnUpdate_${item.id}" type="button" class="btn btn-sm bg-warning-subtle" title="Alterar">${EmojiUtils.pencil}</button>
+                        `;
+                    }
+                    if (this.#config.delete) {
+                        html += `
+                            <button id="btnDelete_${item.id}" type="button" class="btn btn-sm bg-danger-subtle" title="Excluir">${EmojiUtils.wastebasket}</button>
+                        `;
+                    }
+                    html += `
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    $('#select tbody').append(html);
+                    $(`#btnUpdate_${item.id}`).click(this.#onCrudClick.bind(this, 'update', item));
+                    $(`#btnDelete_${item.id}`).click(this.#onCrudClick.bind(this, 'delete', item));
                 }
             });
         }
@@ -339,11 +344,11 @@ class Frontend {
                     break;
 
                 case 'update':
-                    promise = this.#config.entity.backend.update(this.#config.entity.name, item, this.#config.entity.id);
+                    promise = this.#config.entity.backend.update(this.#config.entity.name, item);
                     break;
 
                 case 'delete':
-                    promise = this.#config.entity.backend.delete(this.#config.entity.name, 'id', item.id);
+                    promise = this.#config.entity.backend.delete(this.#config.entity.name, item);
                     break;
             
                 default:
@@ -363,6 +368,20 @@ class Frontend {
                     Frontend.Page.addMessage('danger', '', msg, '#modalCrudMensagens');
                 }
             });
+        }
+    }
+
+    // Classe que não monta absolutamente nada; todo o trabalho deve ser feito a partir do callback.
+    static Custom = class extends this.Page {
+        #callback = null;
+
+        constructor(callback) {
+            super();
+            this.#callback = callback;
+        }
+
+        go() {
+            this.#callback();
         }
     }
 

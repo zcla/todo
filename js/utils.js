@@ -38,8 +38,11 @@ class DateUtils {
 
 class EmojiUtils {
     // Nome: https://emojipedia.org/
-    // HTML: https://www.w3schools.com/charsets/ref_emoji.asp
     static grimacing_face = '&#x1F62C;';
+    static pencil = '&#x270F;';
+    static plus = '&#x2795;';
+    static wastebasket = '&#x1F5D1;';
+    static writing_hand = '&#x270D;';
 }
 
 class StringUtils {

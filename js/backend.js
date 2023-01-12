@@ -78,13 +78,12 @@ class Backend {
                     }
                 }
 
-                if (value) {
-                    result[propertyName] = value;
-                } else {
+                if (!value) {
                     if (property.getConfig().notNull) {
                         erros.push(`Property "${propertyName}" cannot be null.`);
                     }
                 }
+                result[propertyName] = value;
             }
             if (erros.length) {
                 throw erros;
@@ -131,6 +130,11 @@ class Backend {
         return entity.load();
     }
 
+    async getById(entityName, id) {
+        const select = await this.select(entityName);
+        return select.find((item) => item.id == id);
+    }
+
     async update(entityName, properties) {
         const entity = this.#getEntityByName(entityName);
         if (!entity) {
@@ -147,7 +151,7 @@ class Backend {
         }
         const oldEntity = filtered[0];
         const newEntity = entity.validate('update', properties);
-        for (const key of Object.keys(oldEntity)) {
+        for (const key of Object.keys(newEntity)) {
             oldEntity[key] = newEntity[key];
         }
         entity.save(entities);

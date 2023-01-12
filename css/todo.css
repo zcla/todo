@@ -20,6 +20,7 @@ footer p {
 
 #select .botoes button {
     font-size: .9rem;
+    border-radius: 0;
 }
 
 #select .indent1 {

@@ -32,6 +32,10 @@ class Frontend {
             `);
         }
 
+        static refresh() {
+            window.location.reload();
+        }
+
         go() {
             // Gambiarra para emular um método abstrato.
             throw "Esse método deve ser sobrescrito!";
@@ -72,13 +76,13 @@ class Frontend {
                     backend.import(result);
                     $('#storageUploadSpinner').addClass('d-none');
                     $('#storageUpload input').val(null);
-                    window.location.reload();
+                    Frontend.Page.refresh();
                 }
                 reader.readAsText(file);
             });
             $('#backend_limpar').click(() => {
                 backend.clearAllData();
-                window.location.reload();
+                Frontend.Page.refresh();
             });
    
         }
@@ -97,12 +101,17 @@ class Frontend {
 
             // Adiciona o toolbar
             let html = `
-                    <div class="btn-toolbar float-end">
+                    <div id="toolbar" class="btn-toolbar float-end">
                         <div class="btn-group">
             `;
             if (this.#config.insert) {
                 html += `
                     <button id="btnInsert" type="button" class="btn bg-success-subtle" title="Incluir">${EmojiUtils.plus}</button>
+                `;
+            }
+            for (const button of this.#config.select.toolbar) {
+                html += `
+                    ${button.button}
                 `;
             }
             html += `
@@ -111,6 +120,9 @@ class Frontend {
             `;
             $('#conteudo h1').append(html);
             $('#btnInsert').click(this.#onCrudClick.bind(this, 'insert', {}));
+            for (const button of this.#config.select.toolbar) {
+                button.setupEvents();
+            }
 
             $('#conteudo').append(`
                 <div id="select" class="mb-3">
@@ -226,6 +238,12 @@ class Frontend {
                         <label for="modalCrud${input.property}" class="form-label">${input.display}</label>
                 `;
                 switch (input.type) {
+                    case 'number':
+                        html += `
+                            <input id="modalCrud${input.property}" type="number" class="form-control"${disabled}>
+                        `;
+                        break;
+
                     case 'select':
                         $(`#modalCrud${input.property}`).empty();
                         html += `
@@ -312,20 +330,24 @@ class Frontend {
         #onCrudOkClick(qual, item) {
             let inputs = null;
             let adjetivo = null;
+            let tipoMensagem = 'info';
             switch (qual) {
                 case 'insert':
                     inputs = this.#config.insert.inputs;
                     adjetivo = `incluíd${this.#config.entity.genero}`;
+                    tipoMensagem = 'success';
                     break;
 
                 case 'update':
                     inputs = this.#config.update.inputs;
                     adjetivo = `alterad${this.#config.entity.genero}`;
+                    tipoMensagem = 'warning';
                     break;
 
                 case 'delete':
                     inputs = [];
                     adjetivo = `excluíd${this.#config.entity.genero}`;
+                    tipoMensagem = 'danger';
                     break;
             
                 default:
@@ -334,7 +356,11 @@ class Frontend {
             }
 
             for (const input of inputs) {
-                item[input.property] = $(`#modalCrud${input.property}`).val();
+                let val = $(`#modalCrud${input.property}`).val();
+                if (input.type == 'number') {
+                    val = parseInt(val);
+                }
+                item[input.property] = val;
             }
             
             let promise = null;
@@ -357,7 +383,7 @@ class Frontend {
             }
 
             $.when(promise).then((data) => {
-                Frontend.Page.addMessage('info', '', `${this.#config.entity.singularMaiusculo} ${adjetivo}.`);
+                Frontend.Page.addMessage(tipoMensagem, '', `${this.#config.entity.singularMaiusculo} ${adjetivo}.`);
                 $('#modalCrud').modal('hide');
                 this.#select();
             }).catch((failFilter) => {

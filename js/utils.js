@@ -38,6 +38,7 @@ class DateUtils {
 
 class EmojiUtils {
     // Nome: https://emojipedia.org/
+    static broom = '&#x1F9F9;';
     static grimacing_face = '&#x1F62C;';
     static pencil = '&#x270F;';
     static plus = '&#x2795;';

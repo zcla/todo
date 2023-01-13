@@ -185,10 +185,14 @@ class Backend {
     }
 
     import(data) {
+        /* TODO Seria bom que a importação fosse realmente uma importação; hoje ela substitui os dados pelos que vieram.
+                Problema: o insert causa erro porque a entidade já vem com id. Poderia desabilitar, mas isso poderia causar inconsistência.
+                Parece um problema insolúvel por precisar conhecer os dados que vêm.
+                Problema de não fazer: os dados importados podem ser inconsistentes.
+        */
         for (const entity of this.#config.entities){
             const key = entity.getConfig().name;
             if (data[key]) {
-                // TODO Na verdade, aqui seria melhor validar cada um (se existe, update; se não existe, insert)
                 entity.save(data[key]);
             }
         }

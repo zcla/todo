@@ -1,23 +1,6 @@
 "use strict";
 
 class Frontend {
-    static Route = class {
-        constructor(regex, page) {
-            this.#regex = regex;
-            this.#page = page;
-        }
-        
-        #regex = null;
-        getRegex() {
-            return this.#regex;
-        }
-
-        #page = null;
-        gotoPage() {
-            return this.#page.go();
-        }
-    }
-
     static Page = class {
         static addMessage(tipo, titulo, mensagem, selector) {
             if (!selector) {
@@ -32,10 +15,6 @@ class Frontend {
             `);
         }
 
-        static refresh() {
-            window.location.reload();
-        }
-
         go() {
             // Gambiarra para emular um método abstrato.
             throw "Esse método deve ser sobrescrito!";
@@ -44,28 +23,41 @@ class Frontend {
 
     // Classe que monta tudo baseando-se na configuração passada.
     static Crud = class extends this.Page {
-        #config = null;
-
         constructor(config) {
             super();
             this.#config = config;
+        }
 
-            // Obrigatórias
-            if (!config.entity.singularMinusculo ||
-                !config.entity.pluralMaiusculo ||
-                !config.entity.backend ||
-                !config.entity.name) {
-                throw "Faltam elementos obrigatórios!";
-            }
+        #config = null;
+        //  {
+        //      entity: {
+        //          backendId:          ID do Backend.
+        //          pluralMaiusculo:    Nome da Backend.Entity no plural, iniciando em maiúsculo.
+        //      }
+        //      select: {
+        //          onToolbacCreated(selector): Callback chamado logo após a criação do toolbar, para que sejam adicionados novos botões e seus eventos.
+        //                                      Os botões devem ser adicionados no selector passado como parâmetro: $(selector).append(...).
+        //      }
+        //      insert: {
+        //      }
+        //  }
 
+        #route = null;
+
+        start(route) {
+            this.#route = route;
+
+            // TODO Isso não é frontend; é coisa específica do backend utilizado
             // Menu "Dados"
-            const backend = this.#config.entity.backend;
+            const backend = this.#route.getBackend(this.#config.entity.backendId);
             $('#backend_exportar').click(() => {
                 backend.export();
+                Frontend.Page.addMessage('info', '', 'Exportação feita com sucesso.');
             });
             $('#backend_importar').click(() => {
                 $('#storageUpload').removeClass('d-none');
             });
+            const thisEntity = this;
             $('#storageUpload').change(() => {
                 $('#storageUpload').addClass('d-none');
                 $('#storageUploadSpinner').removeClass('d-none');
@@ -73,21 +65,51 @@ class Frontend {
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     const result = JSON.parse(event.target.result);
-                    backend.import(result);
-                    $('#storageUploadSpinner').addClass('d-none');
-                    $('#storageUpload input').val(null);
-                    Frontend.Page.refresh();
+                    $.when(backend.import(result))
+                        .then((data) => {
+                            $('#storageUploadSpinner').addClass('d-none');
+                            $('#storageUpload input').val(null);
+                            thisEntity.refresh();
+                        });
                 }
                 reader.readAsText(file);
+                Frontend.Page.addMessage('info', '', 'Importação feita com sucesso.');
+            });
+            $('#storageUploadSpinnerCancel').click(() => {
+                $('#storageUpload').addClass('d-none');
             });
             $('#backend_limpar').click(() => {
-                backend.clearAllData();
-                Frontend.Page.refresh();
+                $('#modais').empty();
+                $('#modais').append(`
+                    <div id="modalBackendLimpar" class="modal fade" tabindex="-1" aria-labelledby="modalCrudLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-xl">
+                            <div class="modal-content">
+                                <div class="modal-header bg-danger-subtle">
+                                    <h1 id="modalCrudLabel" class="modal-title fs-5">Todos os dados serão perdidos! Confirma?</h1>
+                                </div>
+                                <div class="modal-footer">
+                                    <button id="modalBackendLimparOk" type="button" class="btn btn-danger">Limpar</button>
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `);
+                $('#modalBackendLimpar').modal('show');
+                $('#modalBackendLimparOk').off();
+                const thisCrud = this;
+                $('#modalBackendLimparOk').click(() => {
+                    backend.clearAllData();
+                    thisCrud.refresh();
+                    Frontend.Page.addMessage('info', '', 'Limpeza feita com sucesso.');
+                    $('#modalBackendLimpar').modal('hide');
+                });
             });
-   
+            
+            this.#select();
         }
 
-        go() {
+        refresh() {
             this.#select();
         }
 
@@ -109,19 +131,14 @@ class Frontend {
                     <button id="btnInsert" type="button" class="btn bg-success-subtle" title="Incluir">${EmojiUtils.plus}</button>
                 `;
             }
-            for (const button of this.#config.select.toolbar) {
-                html += `
-                    ${button.button}
-                `;
-            }
             html += `
                         </div>
                     </div>
             `;
             $('#conteudo h1').append(html);
             $('#btnInsert').click(this.#onCrudClick.bind(this, 'insert', {}));
-            for (const button of this.#config.select.toolbar) {
-                button.setupEvents();
+            if (this.#config.select.onToolbacCreated) {
+                this.#config.select.onToolbacCreated('#toolbar .btn-group');
             }
 
             $('#conteudo').append(`
@@ -133,7 +150,9 @@ class Frontend {
                 </div>
             `);
 
-            $.when(this.#config.entity.backend.select(this.#config.entity.name)).then((data) => {
+            const backend = this.#route.getBackend(this.#config.entity.backendId);
+            $.when(backend.select(this.#config.entity.name)).then((data) => {
+                // TODO Continuar daqui
                 if (this.#config.entity.transformData) {
                     data = this.#config.entity.transformData(data);
                 }
@@ -364,17 +383,18 @@ class Frontend {
             }
             
             let promise = null;
+            const backend = this.#route.getBackend(this.#config.entity.backendId);
             switch (qual) {
                 case 'insert':
-                    promise = this.#config.entity.backend.insert(this.#config.entity.name, item);
+                    promise = backend.insert(this.#config.entity.name, item);
                     break;
 
                 case 'update':
-                    promise = this.#config.entity.backend.update(this.#config.entity.name, item);
+                    promise = backend.update(this.#config.entity.name, item);
                     break;
 
                 case 'delete':
-                    promise = this.#config.entity.backend.delete(this.#config.entity.name, item);
+                    promise = backend.delete(this.#config.entity.name, item);
                     break;
             
                 default:
@@ -385,7 +405,7 @@ class Frontend {
             $.when(promise).then((data) => {
                 Frontend.Page.addMessage(tipoMensagem, '', `${this.#config.entity.singularMaiusculo} ${adjetivo}.`);
                 $('#modalCrud').modal('hide');
-                this.#select();
+                this.refresh();
             }).catch((failFilter) => {
                 if (!Array.isArray(failFilter)) {
                     failFilter = [failFilter];
@@ -408,15 +428,6 @@ class Frontend {
 
         go() {
             this.#callback();
-        }
-    }
-
-    constructor(config) {
-        for (const route of config.routes) {
-            if (location.search.match(route.getRegex())) {
-                route.gotoPage();
-                return;
-            }
         }
     }
 }

@@ -4,6 +4,12 @@ class Backend {
     static Entity = class {
         static Property = class {
             constructor(config) {
+            //  config {
+            //      name: string            => Nome da propriedade.
+            //      identity: boolean       => Autonumeração, usada para os IDs.
+            //      notNull: boolean        => Indica se a propriedade pode ser nula.
+            //  }
+
                 this.#config = config;
             }
 
@@ -14,6 +20,11 @@ class Backend {
         }
 
         constructor(config) {
+            //  config {
+            //      name: string        => Nome da entidade.
+            //      properties: []      => Array de Backend.Entity.Property.
+            //  }
+
             this.#config = config;
             this.#config.properties.unshift(
                 new Backend.Entity.Property({
@@ -49,9 +60,6 @@ class Backend {
 
         validate(operation, data) {
             const erros = [];
-            if (!['insert', 'update', 'delete'].includes(operation)) {
-                throw [`Invalid operation "${operation}".`];
-            }
             const result = {};
             for (const property of this.#config.properties) {
                 const propertyName = property.getConfig().name;
@@ -61,7 +69,6 @@ class Backend {
                     switch (operation) {
                         case 'insert':
                             if (value) {
-                                debugger;
                                 erros.push(`Identity property "${propertyName}" must be empty in ${operation} operations.`);
                             }
                             value = this.#newId();
@@ -97,6 +104,9 @@ class Backend {
     }
 
     constructor(config) {
+        //  config {
+        //      entities: []    => Array de Backend.Entity.
+        //  }
         this.#config = config;
     }
 
@@ -105,8 +115,14 @@ class Backend {
         return this.#config;
     }
 
+    // TODO Verificar o que das subclasses deveria estar aqui.
+}
+
+class BackendLocalStorage extends Backend {
+    // TODO Exigir begin transaction; implementar commit e rollback
+
     #getEntityByName(entityName) {
-        return this.#config.entities.find((entity) => entity.getConfig().name == entityName);
+        return this.getConfig().entities.find((entity) => entity.getConfig().name == entityName);
     }
 
     async insert(entityName, entityProperties) {
@@ -114,7 +130,7 @@ class Backend {
         if (!entity) {
             throw `Entity "${entityName}" not found.`;
         }
-
+        
         const entities = entity.load();
         const newEntity = entity.validate('insert', entityProperties);
         entities.push(newEntity);
@@ -178,10 +194,10 @@ class Backend {
 
     export() {
         const result = {};
-        for (const entity of this.#config.entities){
+        for (const entity of this.getConfig().entities){
             result[entity.getConfig().name] = entity.load();
         }
-        StringUtils.downloadString(JSON.stringify(result), `${this.#config.id}.${DateUtils.formatYYYYMMDDHHNNSS(new Date())}.json`);
+        return JSON.stringify(result);
     }
 
     import(data) {
@@ -190,7 +206,7 @@ class Backend {
                 Parece um problema insolúvel por precisar conhecer os dados que vêm.
                 Problema de não fazer: os dados importados podem ser inconsistentes.
         */
-        for (const entity of this.#config.entities){
+        for (const entity of this.getConfig().entities){
             const key = entity.getConfig().name;
             if (data[key]) {
                 entity.save(data[key]);
@@ -199,7 +215,7 @@ class Backend {
     }
 
     clearAllData() {
-        for (const entity of this.#config.entities){
+        for (const entity of this.getConfig().entities){
             entity.drop();
         }
     }

@@ -331,6 +331,17 @@ class Todo {
                                                 tarefa.cumprida = cumprida;
                                                 await bTodo.update('Tarefa', tarefa);
                                                 if (tarefa.idMae) {
+                                                    if (cumprida) {
+                                                        const tarefas = await bTodo.select('Tarefa');
+                                                        const mae = tarefas.find(x => x.id == tarefa.idMae);
+                                                        const irmas = tarefas.filter(x => x.idMae == mae.id);
+                                                        cumprida = true;
+                                                        for (const irma of irmas) {
+                                                            if (!irma.cumprida) {
+                                                                cumprida = false;
+                                                            }
+                                                        }
+                                                    }
                                                     await onCheck(tarefa.idMae, cumprida);
                                                 }
                                                 return;

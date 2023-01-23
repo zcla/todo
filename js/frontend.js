@@ -157,7 +157,7 @@ class FrontendCrud extends Frontend {
 
         $(config.selector).append(`
             <div id="select" class="mb-3">
-                <table class="table table-sm table-bordered table-hover">
+                <table class="table table-sm table-hover">
                     <thead>
                     </thead>
                     <tbody>

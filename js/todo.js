@@ -111,7 +111,7 @@ class Todo {
     setupBackendTodo() {
         return new BackendLocalStorage({
             entities: [
-                new Backend.Entity({
+                new BackendLocalStorage.BackendLocalEntity({
                     name: 'Tarefa',
                     properties: [
                         new Backend.Entity.Property({
@@ -218,8 +218,8 @@ class Todo {
     }
 
     setupMenuDados(backend, frontend, controller) {
-        $('#backend_exportar').click(() => {
-            const data = backend.export();
+        $('#backend_exportar').click(async () => {
+            const data = await backend.export();
             StringUtils.downloadString(data, `todo.${DateUtils.formatYYYYMMDDHHNNSS(new Date())}.json`);
             frontend.addMessage('success', '', 'Exportação feita com sucesso.');
         });
@@ -267,7 +267,7 @@ class Todo {
             $('#modalBackendLimpar').modal('show');
             $('#modalBackendLimparOk').off();
             $('#modalBackendLimparOk').click(async () => {
-                await backend.clearAllData();
+                await backend.truncate();
                 controller.refresh();
                 frontend.addMessage('success', '', 'Limpeza feita com sucesso.');
                 $('#modalBackendLimpar').modal('hide');

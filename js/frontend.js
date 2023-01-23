@@ -22,7 +22,7 @@
     }
 
     show(app, path, data) {
-        throw "Implementar na subclasse!"
+        throw 'Implementar na subclasse.';
     }
 
     throw(error) {

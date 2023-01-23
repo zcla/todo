@@ -1,7 +1,7 @@
 "use strict";
 
-class Backend {
-    static Entity = class {
+/* abstract */ class Backend {
+    /* abstract */ static Entity = class {
         static Property = class {
             constructor(config) {
             //  config {
@@ -46,16 +46,16 @@ class Backend {
             );
         }
 
-        drop() {
-            localStorage.removeItem(this.#config.name);
+        load() {
+            throw 'Implementar na subclasse.';
         }
 
-        load() {
-            const json = localStorage[this.#config.name];
-            if (json === undefined) {
-                return [];
-            }
-            return JSON.parse(json);
+        save(entities) {
+            throw 'Implementar na subclasse.';
+        }
+
+        drop() {
+            throw 'Implementar na subclasse.';
         }
 
         validate(operation, data) {
@@ -97,10 +97,6 @@ class Backend {
             }
             return result;
         }
-
-        save(entities) {
-            localStorage[this.#config.name] = JSON.stringify(entities);
-        }
     }
 
     constructor(config) {
@@ -114,28 +110,10 @@ class Backend {
     getConfig() {
         return this.#config;
     }
-
-    // TODO Verificar o que das subclasses deveria estar aqui.
-}
-
-class BackendLocalStorage extends Backend {
     // TODO Exigir begin transaction; implementar commit e rollback
 
     #getEntityByName(entityName) {
         return this.getConfig().entities.find((entity) => entity.getConfig().name == entityName);
-    }
-
-    async insert(entityName, entityProperties) {
-        const entity = this.#getEntityByName(entityName);
-        if (!entity) {
-            throw `Entity "${entityName}" not found.`;
-        }
-        
-        const entities = entity.load();
-        const newEntity = entity.validate('insert', entityProperties);
-        entities.push(newEntity);
-        entity.save(entities);
-        return newEntity.id;
     }
 
     async select(entityName) {
@@ -149,6 +127,19 @@ class BackendLocalStorage extends Backend {
     async getById(entityName, id) {
         const select = await this.select(entityName);
         return select.find((item) => item.id == id);
+    }
+
+    async insert(entityName, entityProperties) {
+        const entity = this.#getEntityByName(entityName);
+        if (!entity) {
+            throw `Entity "${entityName}" not found.`;
+        }
+        
+        const entities = entity.load();
+        const newEntity = entity.validate('insert', entityProperties);
+        entities.push(newEntity);
+        entity.save(entities);
+        return newEntity.id;
     }
 
     async update(entityName, properties) {
@@ -192,7 +183,7 @@ class BackendLocalStorage extends Backend {
         return entities.length - restantes.length;
     }
 
-    export() {
+    async export() {
         const result = {};
         for (const entity of this.getConfig().entities){
             result[entity.getConfig().name] = entity.load();
@@ -200,7 +191,7 @@ class BackendLocalStorage extends Backend {
         return JSON.stringify(result);
     }
 
-    import(data) {
+    async import(data) {
         /* TODO Seria bom que a importação fosse realmente uma importação; hoje ela substitui os dados pelos que vieram.
                 Problema: o insert causa erro porque a entidade já vem com id. Poderia desabilitar, mas isso poderia causar inconsistência.
                 Parece um problema insolúvel por precisar conhecer os dados que vêm.
@@ -214,9 +205,31 @@ class BackendLocalStorage extends Backend {
         }
     }
 
-    clearAllData() {
+    async truncate() {
         for (const entity of this.getConfig().entities){
             entity.drop();
         }
     }
 }
+
+class BackendLocalStorage extends Backend {
+    static BackendLocalEntity = class extends Backend.Entity {
+        load() {
+            const json = localStorage[this.getConfig().name];
+            if (json === undefined) {
+                return [];
+            }
+            return JSON.parse(json);
+        }
+
+        save(entities) {
+            localStorage[this.getConfig().name] = JSON.stringify(entities);
+        }
+
+        drop() {
+            localStorage.removeItem(this.getConfig().name);
+        }
+    }
+}
+
+// TODO Criar Backend json: https://jsonkeeper.com/b/O3AP e https://api.jsonserve.com/FCiKcB

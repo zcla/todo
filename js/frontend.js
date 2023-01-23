@@ -69,13 +69,13 @@ class FrontendCrud extends Frontend {
     #config = null;
 
     show(app, path, data) {
-        function fail(selector, data) {
+        function fail(crud, selector, data) {
             if (Array.isArray(data)) {
                 for (const msg of data) {
-                    this.addMessage('danger', '', msg, selector);
+                    crud.addMessage('danger', '', msg, selector);
                 }
             } else {
-                this.throw(data);
+                crud.throw(data);
             }
         }
 
@@ -94,7 +94,7 @@ class FrontendCrud extends Frontend {
                     success(this, 'incluíd');
                     break;
                 case '#insert-ok-fail':
-                    fail('#modalCrud_Mensagens');
+                    fail(this, '#modalCrud_Mensagens', data);
                     break;
 
                 case '#update':
@@ -104,20 +104,20 @@ class FrontendCrud extends Frontend {
                     success(this, 'alterad');
                     break;
                 case '#update-ok-fail':
-                    fail('#modalCrud_Mensagens');
+                    fail(this, '#modalCrud_Mensagens', data);
                     break;
     
                 case '#delete':
                     this.#onCrudClick(app, path.substring(1), data);
                     break;
                 case '#delete-fail':
-                    fail();
+                    fail(this, null, data);
                     break;
                 case '#delete-ok-success':
                     success(this, 'excluíd');
                     break;
                 case '#update-ok-fail':
-                    fail('#modalCrud_Mensagens');
+                    fail(this, '#modalCrud_Mensagens', data);
                     break;
 
                 default:

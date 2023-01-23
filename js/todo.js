@@ -297,18 +297,24 @@ class Todo {
                                     checked = ' checked';
                                 }
                                 let result = `
-                                    <input class="form-check-input me-1" type="checkbox" value="" id="Tarefa_check_${tarefa.id}"${disabled}${checked}>
-                                    <label class="form-check-label" for="Tarefa_check_${tarefa.id}">${tarefa.nome}</label>
+                                    <span class="col-1" style="width: 1px !important">
+                                        <input class="form-check-input me-1" type="checkbox" value="" id="Tarefa_check_${tarefa.id}"${disabled}${checked}>
+                                    </span>
+                                    <span class="col">
+                                        <label class="form-check-label" for="Tarefa_check_${tarefa.id}">${tarefa.nome}</label>
                                 `;
                                 if (tarefa.notas) {
                                     result += `
                                         <small>${tarefa.notas}</small>
                                     `;
                                 }
+                                result += `
+                                    </span>
+                                `;
                                 data.push({
                                     id: tarefa.id,
                                     nome: `
-                                        <span class="indent${tarefa.indent}">
+                                        <span class="row indent${tarefa.indent}">
                                             ${result}
                                         </span>
                                     `

@@ -12,6 +12,13 @@
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         `);
+        if (tipo == 'success') {
+            $(`${selector} .alert`).fadeTo(5000, 500).slideUp(500, function(){
+                $(this).slideUp(500, function() {
+                    $(this).alert('close');
+                });
+            });
+        }
     }
 
     show(app, path, data) {

@@ -18,9 +18,12 @@ footer p {
     width: 0;
 }
 
+#select .botoes .btn-group {
+    margin: 1px;
+}
+
 #select .botoes button {
     font-size: .90rem;
-    margin: 1px;
 }
 
 #select .indent1 {

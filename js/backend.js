@@ -46,18 +46,6 @@
             );
         }
 
-        async load() {
-            throw 'Implementar na subclasse.';
-        }
-
-        async save(entities) {
-            throw 'Implementar na subclasse.';
-        }
-
-        async drop() {
-            throw 'Implementar na subclasse.';
-        }
-
         async validate(operation, data) {
             const erros = [];
             const result = {};
@@ -81,7 +69,7 @@
                             break;
                         default:
                             debugger;
-                            throw [`I don't know how to handle the operation "${operation}"`];
+                            throw [ new Error(`I don't know how to handle the operation "${operation}"`) ];
                     }
                 }
 
@@ -118,27 +106,35 @@
     #intransaction = false;
 
     async beginTransaction() {
+        if (this.#intransaction) {
+            throw new Error('The backend is already in a transaction.');
+        }
         this.#intransaction = true;
     }
 
     async commitTransaction() {
+        if (!this.#intransaction) {
+            throw new Error('The backend is not in a transaction.');
+        }
         this.#intransaction = false;
     }
 
     async rollbackTransaction() {
+        if (!this.#intransaction) {
+            throw new Error('The backend is not in a transaction.');
+        }
         this.#intransaction = false;
     }
 
     async select(entityName) {
-        // TODO Implementar
-        // if (!this.#intransaction) {
-        //     throw "[Backend] Not in transaction";
-        // }
+        if (!this.#intransaction) {
+            throw new Error('The backend is not in a transaction.');
+        }
         const entity = this.#getEntityByName(entityName);
         if (!entity) {
-            throw `Entity "${entityName}" not found.`;
+            throw new Error(`Entity "${entityName}" not found.`);
         }
-        return await entity.load();
+        return entity;
     }
 
     async getById(entityName, id) {
@@ -146,15 +142,16 @@
         return select.find((item) => item.id == id);
     }
 
+    // TODO Falta: insert, desmarcar todas, exportar, importar, limpar.
     async insert(entityName, entityProperties) {
-        // TODO Implementar
-        // if (!this.#intransaction) {
-        //     throw "[Backend] Not in transaction";
-        // }
+        if (!this.#intransaction) {
+            throw new Error('The backend is not in a transaction.');
+        }
         const entity = this.#getEntityByName(entityName);
         if (!entity) {
-            throw `Entity "${entityName}" not found.`;
+            throw new Error(`Entity "${entityName}" not found.`);
         }
+        return entity;
         
         const entities = await entity.load();
         const newEntity = await entity.validate('insert', entityProperties);
@@ -164,52 +161,25 @@
     }
 
     async update(entityName, properties) {
-        // TODO Implementar
-        // if (!this.#intransaction) {
-        //     throw "[Backend] Not in transaction";
-        // }
+        if (!this.#intransaction) {
+            throw new Error('The backend is not in a transaction.');
+        }
         const entity = this.#getEntityByName(entityName);
         if (!entity) {
-            throw `Entity "${entityName}" not found.`;
+            throw new Error(`Entity "${entityName}" not found.`);
         }
-        
-        const entities = await entity.load();
-        let filtered = entities.filter((entity) => entity.id == properties.id);
-        if (filtered.length == 0) {
-            throw `Entity "${entityName}" doesn't have an element with id = "${properties.id}".`;
-        }
-        if (filtered.length > 1) {
-            throw `Entity "${entityName}" has more than one element with id = "${properties.id}".`;
-        }
-        const oldEntity = filtered[0];
-        const newEntity = await entity.validate('update', properties);
-        for (const key of Object.keys(newEntity)) {
-            oldEntity[key] = newEntity[key];
-        }
-        await entity.save(entities);
-        return 1;
+        return entity;
     }
 
     async delete(entityName, properties) {
-        // TODO Implementar
-        // if (!this.#intransaction) {
-        //     throw "[Backend] Not in transaction";
-        // }
+        if (!this.#intransaction) {
+            throw new Error('The backend is not in a transaction.');
+        }
         const entity = this.#getEntityByName(entityName);
         if (!entity) {
-            throw `Entity "${entityName}" not found.`;
+            throw new Error(`Entity "${entityName}" not found.`);
         }
-        
-        const entities = await entity.load();
-        const restantes = entities.filter((entity) => entity.id != properties.id);
-        if (entities.length - restantes.length == 0) {
-            throw `Entity "${entityName}" doesn't have an element with id = "${properties.id}".`;
-        }
-        if (entities.length - restantes.length > 1) {
-            throw `Entity "${entityName}" has more than one element with id = "${properties.id}".`;
-        }
-        await entity.save(restantes);
-        return entities.length - restantes.length;
+        return entity;
     }
 
     async export() {
@@ -253,21 +223,104 @@
 
 class BackendLocalStorage extends Backend {
     static BackendLocalEntity = class extends Backend.Entity {
-        load() {
-            const json = localStorage[this.getConfig().name];
-            if (json === undefined) {
-                return [];
-            }
-            return JSON.parse(json);
+        #backend = null;
+
+        setBackend(backend) {
+            this.#backend = backend;
         }
 
-        save(entities) {
-            localStorage[this.getConfig().name] = JSON.stringify(entities);
-        }
-
+        // TODO Não deve existir!
         drop() {
+            debugger;
             localStorage.removeItem(this.getConfig().name);
         }
+    }
+
+    constructor(config) {
+        super(config);
+        for (const entity of config.entities) {
+            entity.setBackend(this);
+        }
+    }
+
+    #transactionData = null;
+
+    async select(entityName) {
+        const entity = await super.select(entityName);
+        const id = entity.getConfig().name;
+        if (!this.#transactionData[id]) {
+            const json = localStorage[entity.getConfig().name];
+            if (json === undefined) {
+                this.#transactionData[id] = [];
+            }
+            this.#transactionData[id] = JSON.parse(json);
+        }
+        return this.#transactionData[id];
+    }
+
+    async insert(entityName, properties) {
+        const entity = await super.update(entityName, properties);
+        const entities = await this.select(entityName);
+        const newEntity = await entity.validate('insert', properties);
+        entities.push(newEntity);
+        return 1;
+    }
+
+    async update(entityName, properties) {
+        const entity = await super.update(entityName, properties);
+        const entities = await this.select(entityName);
+        let filtered = entities.filter((entity) => entity.id == properties.id);
+        if (filtered.length == 0) {
+            this.rollbackTransaction();
+            throw new Error(`Entity "${entityName}" doesn't have an element with id = "${properties.id}".`);
+        }
+        if (filtered.length > 1) {
+            this.rollbackTransaction();
+            throw new Error(`Entity "${entityName}" has more than one element with id = "${properties.id}".`);
+        }
+        const oldEntity = filtered[0];
+        const newEntity = await entity.validate('update', properties);
+        for (const key of Object.keys(newEntity)) {
+            oldEntity[key] = newEntity[key];
+        }
+        return filtered.length;
+    }
+
+    async delete(entityName, properties) {
+        const entity = await super.delete(entityName, properties);
+        const entities = await this.select(entityName);
+        const restantes = entities.filter((entity) => entity.id != properties.id);
+        if (entities.length - restantes.length == 0) {
+            this.rollbackTransaction();
+            throw new Error(`Entity "${entityName}" doesn't have an element with id = "${properties.id}".`);
+        }
+        if (entities.length - restantes.length > 1) {
+            this.rollbackTransaction();
+            throw new Error(`Entity "${entityName}" has more than one element with id = "${properties.id}".`);
+        }
+        this.#transactionData[entityName] = restantes;
+        return entities.length - restantes.length;
+    }
+
+    async beginTransaction() {
+        console.log('beginTransaction()');
+        super.beginTransaction();
+        this.#transactionData = {};
+    }
+
+    async commitTransaction() {
+        console.log('commitTransaction()');
+        super.commitTransaction();
+        for (const entityName of Object.keys(this.#transactionData)) {
+            localStorage[entityName] = JSON.stringify(this.#transactionData[entityName]);
+        }
+        this.#transactionData = null;
+    }
+
+    async rollbackTransaction() {
+        console.log('rollbackTransaction()');
+        super.rollbackTransaction();
+        this.#transactionData = null;
     }
 }
 

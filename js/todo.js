@@ -194,13 +194,7 @@ class Todo {
                         $('#modalBackendDesmarcarOk').off();
                          // TODO Daqui pra cima é frontend; daqui pra baixo é controller. Fazer um Route.
                         $('#modalBackendDesmarcarOk').click(async () => {
-                            const tarefas = await bTodo.select('Tarefa');
-                            for (const tarefa of tarefas) {
-                                tarefa.cumprida = false;
-                                await bTodo.update('Tarefa', tarefa);
-                            }
-                            $('#modalBackendDesmarcar').modal('hide');
-                            app.refresh();
+                            app.navigate(`#update-desmarcarTodas`);
                         });
                     });
                 }
@@ -283,138 +277,206 @@ class Todo {
                     frontend: fTarefasCrud,
                     data: {
                         select: async () => {
-                            const cru = await bTodo.select('Tarefa');
-                            const tarefas = Todo.Tarefa.complementaDados(cru);
+                            await bTodo.beginTransaction();
+                            try {
+                                const cru = await bTodo.select('Tarefa');
+                                const tarefas = Todo.Tarefa.complementaDados(cru);
 
-                            const data = [];
-                            for (const tarefa of tarefas) {
-                                let disabled = '';
-                                if (tarefa.idsFilhas.length > 0) {
-                                    disabled = ' disabled';
-                                }
-                                let checked = '';
-                                if (tarefa.cumprida) {
-                                    checked = ' checked';
-                                }
-                                let result = `
-                                    <span class="col-1" style="width: 1px !important">
-                                        <input class="form-check-input me-1" type="checkbox" value="" id="Tarefa_check_${tarefa.id}"${disabled}${checked}>
-                                    </span>
-                                    <span class="col">
-                                        <label class="form-check-label" for="Tarefa_check_${tarefa.id}">${tarefa.nome}</label>
-                                `;
-                                if (tarefa.notas) {
-                                    result += `
-                                        <small>${tarefa.notas}</small>
-                                    `;
-                                }
-                                result += `
-                                    </span>
-                                `;
-                                data.push({
-                                    id: tarefa.id,
-                                    nome: `
-                                        <span class="row indent${tarefa.indent}">
-                                            ${result}
+                                const data = [];
+                                for (const tarefa of tarefas) {
+                                    let disabled = '';
+                                    if (tarefa.idsFilhas.length > 0) {
+                                        disabled = ' disabled';
+                                    }
+                                    let checked = '';
+                                    if (tarefa.cumprida) {
+                                        checked = ' checked';
+                                    }
+                                    let result = `
+                                        <span class="col-1" style="width: 1px !important">
+                                            <input class="form-check-input me-1" type="checkbox" value="" id="Tarefa_check_${tarefa.id}"${disabled}${checked}>
                                         </span>
-                                    `
-                                });
-                            }
-
-                            return {
-                                data: data,
-                                columns: [
-                                    {
-                                        title: 'Tarefa', // TODO remover depois de documentar
-                                        property: 'nome'
+                                        <span class="col">
+                                            <label class="form-check-label" for="Tarefa_check_${tarefa.id}">${tarefa.nome}</label>
+                                    `;
+                                    if (tarefa.notas) {
+                                        result += `
+                                            <small>${tarefa.notas}</small>
+                                        `;
                                     }
-                                ],
-                                callback: (app) => {
-                                    for (const tarefa of tarefas) {
-                                        $(`#Tarefa_check_${tarefa.id}`).click(async () => {
-                                            async function onCheck(id, cumprida) {
-                                                const tarefa = await bTodo.getById('Tarefa', id);
-                                                tarefa.cumprida = cumprida;
-                                                await bTodo.update('Tarefa', tarefa);
-                                                if (tarefa.idMae) {
-                                                    if (cumprida) {
-                                                        const tarefas = await bTodo.select('Tarefa');
-                                                        const mae = tarefas.find(x => x.id == tarefa.idMae);
-                                                        const irmas = tarefas.filter(x => x.idMae == mae.id);
-                                                        cumprida = true;
-                                                        for (const irma of irmas) {
-                                                            if (!irma.cumprida) {
-                                                                cumprida = false;
-                                                            }
-                                                        }
-                                                    }
-                                                    await onCheck(tarefa.idMae, cumprida);
-                                                }
-                                                return;
-                                            }
-
-                                            await onCheck(tarefa.id, $(`#selectItem_${tarefa.id} input[type='checkbox']`).prop('checked'));
-                                            app.refresh();
-                                        });
-                                    }
+                                    result += `
+                                        </span>
+                                    `;
+                                    data.push({
+                                        id: tarefa.id,
+                                        nome: `
+                                            <span class="row indent${tarefa.indent}">
+                                                ${result}
+                                            </span>
+                                        `
+                                    });
                                 }
-                            };
+
+                                return {
+                                    data: data,
+                                    columns: [
+                                        {
+                                            title: 'Tarefa', // TODO remover depois de documentar
+                                            property: 'nome'
+                                        }
+                                    ],
+                                    callback: async (app) => {
+                                        await bTodo.beginTransaction();
+                                        try {
+                                            for (const tarefa of tarefas) {
+                                                $(`#Tarefa_check_${tarefa.id}`).click(async () => {
+                                                    app.navigate(`#update-cumprida`, { id: tarefa.id });
+                                                });
+                                            }
+                                        } finally {
+                                            await bTodo.rollbackTransaction();
+                                        }
+                                    }
+                                };
+                            } finally {
+                                await bTodo.rollbackTransaction();
+                            }
                         },
                         insert: async () => {
-                            return {
-                                form: {
-                                    peso: 0
-                                },
-                                select: {
-                                    idMae: Todo.Tarefa.comboTarefas(await bTodo.select('Tarefa'))
-                                }
-                            };
+                            await bTodo.beginTransaction();
+                            try {
+                                return {
+                                    form: {
+                                        peso: 0
+                                    },
+                                    select: {
+                                        idMae: Todo.Tarefa.comboTarefas(await bTodo.select('Tarefa'))
+                                    }
+                                };
+                            } finally {
+                                await bTodo.rollbackTransaction();
+                            }
                         },
                         update: async (params) => {
-                            const tarefas = await bTodo.select('Tarefa');
-                            const tarefa = tarefas.find(tarefa => tarefa.id == params.id);
-                            return {
-                                form: { // TODO == tarefa?
-                                    id: tarefa.id,
-                                    nome: tarefa.nome,
-                                    notas: tarefa.notas,
-                                    peso: tarefa.peso,
-                                    idMae: tarefa.idMae
-                                },
-                                select: {
-                                    idMae: Todo.Tarefa.comboTarefas(tarefas)
-                                }
-                            };
+                            await bTodo.beginTransaction();
+                            try {
+                                const tarefas = await bTodo.select('Tarefa');
+                                const tarefa = tarefas.find(tarefa => tarefa.id == params.id);
+                                return {
+                                    form: { // TODO == tarefa?
+                                        id: tarefa.id,
+                                        nome: tarefa.nome,
+                                        notas: tarefa.notas,
+                                        peso: tarefa.peso,
+                                        idMae: tarefa.idMae
+                                    },
+                                    select: {
+                                        idMae: Todo.Tarefa.comboTarefas(tarefas)
+                                    }
+                                };
+                            } finally {
+                                await bTodo.rollbackTransaction();
+                            }
                         },
                         delete: async (params) => {
-                            const tarefas = await bTodo.select('Tarefa');
-                            const tarefa = tarefas.find(tarefa => tarefa.id == params.id);
-                            return {
-                                form: { // TODO == tarefa?
-                                    id: tarefa.id,
-                                    nome: tarefa.nome,
-                                    notas: tarefa.notas,
-                                    peso: tarefa.peso,
-                                    idMae: tarefa.idMae
-                                },
-                                select: {
-                                    idMae: Todo.Tarefa.comboTarefas(tarefas)
-                                }
-                            };
+                            await bTodo.beginTransaction();
+                            try {
+                                const tarefas = await bTodo.select('Tarefa');
+                                const tarefa = tarefas.find(tarefa => tarefa.id == params.id);
+                                return {
+                                    form: { // TODO == tarefa?
+                                        id: tarefa.id,
+                                        nome: tarefa.nome,
+                                        notas: tarefa.notas,
+                                        peso: tarefa.peso,
+                                        idMae: tarefa.idMae
+                                    },
+                                    select: {
+                                        idMae: Todo.Tarefa.comboTarefas(tarefas)
+                                    }
+                                };
+                            } finally {
+                                await bTodo.rollbackTransaction();
+                            }
                         }
                     },
                     action: {
                         'insert-ok': async (data) => {
-                            const result = await bTodo.insert('Tarefa', data);
-                            return result;
-                        },
-                        'delete-ok': async (data) => {
-                            const result = await bTodo.delete('Tarefa', data);
-                            return result;
+                            await bTodo.beginTransaction();
+                            try {
+                                return await bTodo.insert('Tarefa', data);
+                            } finally {
+                                await bTodo.commitTransaction();
+                            }
                         },
                         'update-ok': async (data) => {
-                            const result = await bTodo.update('Tarefa', data);
-                            return result;
+                            await bTodo.beginTransaction();
+                            try {
+                                return await bTodo.update('Tarefa', data);
+                            } finally {
+                                await bTodo.commitTransaction();
+                            }
+                        },
+                        'delete-ok': async (data) => {
+                            await bTodo.beginTransaction();
+                            try {
+                                return await bTodo.delete('Tarefa', data);
+                            } finally {
+                                await bTodo.commitTransaction();
+                            }
+                        },
+                        'update-cumprida': async (data) => {
+                            async function onCheck(id, cumprida) {
+                                const tarefa = await bTodo.getById('Tarefa', id);
+                                tarefa.cumprida = cumprida;
+                                await bTodo.update('Tarefa', tarefa);
+                                if (tarefa.idMae) {
+                                    if (cumprida) {
+                                        const tarefas = await bTodo.select('Tarefa');
+                                        const mae = tarefas.find(x => x.id == tarefa.idMae);
+                                        const irmas = tarefas.filter(x => x.idMae == mae.id);
+                                        cumprida = true;
+                                        for (const irma of irmas) {
+                                            if (!irma.cumprida) {
+                                                cumprida = false;
+                                            }
+                                        }
+                                    }
+                                    await onCheck(tarefa.idMae, cumprida);
+                                }
+                                return;
+                            }
+
+                            await bTodo.beginTransaction();
+                            try {
+                                await onCheck(data.id, $(`#selectItem_${data.id} input[type='checkbox']`).prop('checked'));
+                                // app.refresh();
+                            } finally {
+                                await bTodo.commitTransaction();
+                            }
+                            return '#select';
+                        },
+                        'update-desmarcarTodas': async () => {
+                            await bTodo.beginTransaction();
+                            let count = 0;
+                            try {
+                                const tarefas = await bTodo.select('Tarefa');
+                                for (const tarefa of tarefas) {
+                                    if (tarefa.cumprida) {
+                                        tarefa.cumprida = false;
+                                        await bTodo.update('Tarefa', tarefa);
+                                        count++;
+                                    }
+                                }
+                                $('#modalBackendDesmarcar').modal('hide');
+                            } finally {
+                                await bTodo.commitTransaction();
+                            }
+                            await bTodo.beginTransaction();
+                            if (count > 0) {
+                                fTarefasCrud.addMessage('success', '', `${count} tarefa${count > 1 ? 's' : ''} desmarcada${count > 1 ? 's' : ''}.`);
+                            }
+                            return '#select';
                         }
                     }
                 })

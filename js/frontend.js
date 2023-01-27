@@ -22,13 +22,25 @@
     }
 
     show(app, path, data) {
-        throw 'Implementar na subclasse.';
+        throw new Error('Implementar na subclasse.');
     }
 
     throw(error) {
         let msg = error;
-        if (error instanceof ErrorEvent) {
-            msg = `${error.message}<br><pre>${error.error.stack}</pre>`;
+        if (msg instanceof ErrorEvent) {
+            msg = msg.error;
+        }
+        if (msg instanceof Error) {
+            const stack = msg.stack.split('\n');
+            let htmlStack = '';
+            for (const item of stack) {
+                let classe = '';
+                if (item.match(/\/3rdp\//)) {
+                    classe = 'stack3rdp';
+                }
+                htmlStack += `<span class="${classe}">${item.replace('<', '&lt;')}</span><br>`;
+            }
+            msg = `${msg.message}<br><pre class="erro">${htmlStack}</pre>`;
         }
         this.addMessage('danger', `Erro interno da aplicação! ${EmojiUtils.grimacing_face}`, msg);
     }
@@ -68,7 +80,7 @@ class FrontendCrud extends Frontend {
 
     #config = null;
 
-    show(app, path, data) {
+    async show(app, path, data) {
         function fail(crud, selector, data) {
             if (Array.isArray(data)) {
                 for (const msg of data) {
@@ -85,10 +97,20 @@ class FrontendCrud extends Frontend {
             $('#modalCrud').modal('hide');
         }
 
+        if (path == '#select') {
+            path = '';
+        }
         if (path) {
             switch (path) {
+                case '-fail': // Equivalente a #select-fail
+                    fail(this, '#modalCrud_Mensagens', data);
+                    break;
+
                 case '#insert':
                     this.#onCrudClick(app, path.substring(1), data);
+                    break;
+                case '#insert-fail':
+                    fail(this, null, data);
                     break;
                 case '#insert-ok-success':
                     success(this, 'incluíd');
@@ -99,6 +121,9 @@ class FrontendCrud extends Frontend {
 
                 case '#update':
                     this.#onCrudClick(app, path.substring(1), data);
+                    break;
+                case '#update-fail':
+                    fail(this, null, data);
                     break;
                 case '#update-ok-success':
                     success(this, 'alterad');
@@ -121,6 +146,7 @@ class FrontendCrud extends Frontend {
                     break;
 
                 default:
+                    debugger;
                     this.throw(`[FrotendCrud] Unknown path: ${path}`);
                     break;
             }
@@ -128,8 +154,8 @@ class FrontendCrud extends Frontend {
             this.#showSelect(app, data);
         }
 
-        if (data.callback) {
-            data.callback(app);
+        if (data && data.callback) {
+            await data.callback(app);
         }
     }
 

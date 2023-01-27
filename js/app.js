@@ -41,20 +41,25 @@ class App {
             let naoConfigurado = true;
             if (this.#config.action[id]) {
                 naoConfigurado = false;
-                $.when(this.#config.action[id](params)).then((data) => {
-                    this.#config.frontend.show(this.#app, `${path}-success`, data);
-                }).catch((error) => {
-                    // TODO "Traduzir" o nome das propriedades pros que aparecem na tela
-                    this.#config.frontend.show(this.#app, `${path}-fail`, error);
+                $.when(this.#config.action[id](params)).then(async (data) => {
+                    if (data) {
+                        this.#app.navigate(data);
+                    } else {
+                        await this.#config.frontend.show(this.#app, `${path}-success`, data);
+                    }
+                }).catch(async (error) => {
+                    // TODO Para cruds: "traduzir" o nome das propriedades pros que aparecem na tela.
+                    // TODO Para actions "customizadas": deveria mostrar o erro na tela, não chamar frontend.show.
+                    await this.#config.frontend.show(this.#app, `${path}-fail`, error);
                 });
             }
 
             if (this.#config.data[id]) {
                 naoConfigurado = false;
-                $.when(this.getData(id, params)).then((data) => {
-                    this.#config.frontend.show(this.#app, path, data);
-                }).catch((error) => {
-                    this.#config.frontend.show(this.#app, `${path}-fail`, error);
+                $.when(this.getData(id, params)).then(async (data) => {
+                    await this.#config.frontend.show(this.#app, path, data);
+                }).catch(async (error) => {
+                    await this.#config.frontend.show(this.#app, `${path}-fail`, error);
                 });
             }
 

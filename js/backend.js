@@ -142,8 +142,9 @@
         return select.find((item) => item.id == id);
     }
 
-    // TODO Falta: insert, desmarcar todas, exportar, importar, limpar.
-    async insert(entityName, entityProperties) {
+    // TODO Falta: exportar, importar, limpar.
+    async insert(entityName, properties) {
+        // TODO Os dois métodos abaixo são EXATAMENTE iguais; unificar.
         if (!this.#intransaction) {
             throw new Error('The backend is not in a transaction.');
         }
@@ -152,12 +153,6 @@
             throw new Error(`Entity "${entityName}" not found.`);
         }
         return entity;
-        
-        const entities = await entity.load();
-        const newEntity = await entity.validate('insert', entityProperties);
-        entities.push(newEntity);
-        await entity.save(entities);
-        return newEntity.id;
     }
 
     async update(entityName, properties) {
@@ -206,7 +201,7 @@
             try {
                 const key = entity.getConfig().name;
                 if (data[key]) {
-                    await entity.save(data[key]);
+                    await entity.save(data[key]); // TODO Não existe!
                 }
             } finally {
                 await this.commitTransaction();
@@ -220,6 +215,10 @@
         }
     }
 }
+
+// TODO Mover pra cá tudo o que não faz referência a localStorage; fazer BackendLocalStorage extends BackendJson.
+// class BackendJson extends Backend {
+// }
 
 class BackendLocalStorage extends Backend {
     static BackendLocalEntity = class extends Backend.Entity {
@@ -249,9 +248,9 @@ class BackendLocalStorage extends Backend {
         const entity = await super.select(entityName);
         const id = entity.getConfig().name;
         if (!this.#transactionData[id]) {
-            const json = localStorage[entity.getConfig().name];
+            let json = localStorage[entity.getConfig().name];
             if (json === undefined) {
-                this.#transactionData[id] = [];
+                json = '[]';
             }
             this.#transactionData[id] = JSON.parse(json);
         }
@@ -259,11 +258,11 @@ class BackendLocalStorage extends Backend {
     }
 
     async insert(entityName, properties) {
-        const entity = await super.update(entityName, properties);
+        const entity = await super.insert(entityName, properties);
         const entities = await this.select(entityName);
         const newEntity = await entity.validate('insert', properties);
         entities.push(newEntity);
-        return 1;
+        return newEntity.id;
     }
 
     async update(entityName, properties) {

@@ -404,7 +404,7 @@ class Todo {
                         'insert-ok': async (data) => {
                             await bTodo.beginTransaction();
                             try {
-                                return await bTodo.insert('Tarefa', data);
+                                await bTodo.insert('Tarefa', data);
                             } finally {
                                 await bTodo.commitTransaction();
                             }
@@ -412,7 +412,7 @@ class Todo {
                         'update-ok': async (data) => {
                             await bTodo.beginTransaction();
                             try {
-                                return await bTodo.update('Tarefa', data);
+                                await bTodo.update('Tarefa', data);
                             } finally {
                                 await bTodo.commitTransaction();
                             }
@@ -420,7 +420,7 @@ class Todo {
                         'delete-ok': async (data) => {
                             await bTodo.beginTransaction();
                             try {
-                                return await bTodo.delete('Tarefa', data);
+                                await bTodo.delete('Tarefa', data);
                             } finally {
                                 await bTodo.commitTransaction();
                             }

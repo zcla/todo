@@ -192,7 +192,6 @@ class Todo {
                         `);
                         $('#modalBackendDesmarcar').modal('show');
                         $('#modalBackendDesmarcarOk').off();
-                         // TODO Daqui pra cima é frontend; daqui pra baixo é controller. Fazer um Route.
                         $('#modalBackendDesmarcarOk').click(async () => {
                             app.navigate(`#update-desmarcarTodas`);
                         });
@@ -326,15 +325,10 @@ class Todo {
                                         }
                                     ],
                                     callback: async (app) => {
-                                        await bTodo.beginTransaction();
-                                        try {
-                                            for (const tarefa of tarefas) {
-                                                $(`#Tarefa_check_${tarefa.id}`).click(async () => {
-                                                    app.navigate(`#update-cumprida`, { id: tarefa.id });
-                                                });
-                                            }
-                                        } finally {
-                                            await bTodo.rollbackTransaction();
+                                        for (const tarefa of tarefas) {
+                                            $(`#Tarefa_check_${tarefa.id}`).click(async () => {
+                                                app.navigate(`#update-cumprida`, { id: tarefa.id });
+                                            });
                                         }
                                     }
                                 };

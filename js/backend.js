@@ -142,9 +142,7 @@
         return select.find((item) => item.id == id);
     }
 
-    // TODO Falta: exportar, importar, limpar.
-    async insert(entityName, properties) {
-        // TODO Os dois métodos abaixo são EXATAMENTE iguais; unificar.
+    async #dml(entityName) {
         if (!this.#intransaction) {
             throw new Error('The backend is not in a transaction.');
         }
@@ -153,28 +151,18 @@
             throw new Error(`Entity "${entityName}" not found.`);
         }
         return entity;
+    }
+
+    async insert(entityName, properties) {
+        return await this.#dml(entityName);
     }
 
     async update(entityName, properties) {
-        if (!this.#intransaction) {
-            throw new Error('The backend is not in a transaction.');
-        }
-        const entity = this.#getEntityByName(entityName);
-        if (!entity) {
-            throw new Error(`Entity "${entityName}" not found.`);
-        }
-        return entity;
+        return await this.#dml(entityName);
     }
 
     async delete(entityName, properties) {
-        if (!this.#intransaction) {
-            throw new Error('The backend is not in a transaction.');
-        }
-        const entity = this.#getEntityByName(entityName);
-        if (!entity) {
-            throw new Error(`Entity "${entityName}" not found.`);
-        }
-        return entity;
+        return await this.#dml(entityName);
     }
 }
 

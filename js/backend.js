@@ -176,44 +176,6 @@
         }
         return entity;
     }
-
-    async export() {
-        await this.beginTransaction();
-        try {
-            const result = {};
-            for (const entity of this.getConfig().entities){
-                result[entity.getConfig().name] = await entity.load();
-            }
-            return JSON.stringify(result);
-        } finally {
-            await this.rollbackTransaction();
-        }
-    }
-
-    async import(data) {
-        /* TODO Seria bom que a importação fosse realmente uma importação; hoje ela substitui os dados pelos que vieram.
-                Problema: o insert causa erro porque a entidade já vem com id. Poderia desabilitar, mas isso poderia causar inconsistência.
-                Parece um problema insolúvel por precisar conhecer os dados que vêm.
-                Problema de não fazer: os dados importados podem ser inconsistentes.
-        */
-        for (const entity of this.getConfig().entities){
-            await this.beginTransaction();
-            try {
-                const key = entity.getConfig().name;
-                if (data[key]) {
-                    await entity.save(data[key]); // TODO Não existe!
-                }
-            } finally {
-                await this.commitTransaction();
-            }
-        }
-    }
-
-    async truncate() {
-        for (const entity of this.getConfig().entities){
-            await entity.drop();
-        }
-    }
 }
 
 // TODO Mover pra cá tudo o que não faz referência a localStorage; fazer BackendLocalStorage extends BackendJson.
@@ -226,12 +188,6 @@ class BackendLocalStorage extends Backend {
 
         setBackend(backend) {
             this.#backend = backend;
-        }
-
-        // TODO Não deve existir!
-        drop() {
-            debugger;
-            localStorage.removeItem(this.getConfig().name);
         }
     }
 
@@ -311,7 +267,12 @@ class BackendLocalStorage extends Backend {
         console.log('commitTransaction()');
         super.commitTransaction();
         for (const entityName of Object.keys(this.#transactionData)) {
-            localStorage[entityName] = JSON.stringify(this.#transactionData[entityName]);
+            const data = this.#transactionData[entityName];
+            if (data.length) {
+                localStorage[entityName] = JSON.stringify(data);
+            } else {
+                localStorage.removeItem(entityName);
+            }
         }
         this.#transactionData = null;
     }
@@ -320,6 +281,49 @@ class BackendLocalStorage extends Backend {
         console.log('rollbackTransaction()');
         super.rollbackTransaction();
         this.#transactionData = null;
+    }
+
+    async export() {
+        await this.beginTransaction();
+        try {
+            const result = {};
+            for (const entity of this.getConfig().entities){
+                result[entity.getConfig().name] = await this.select(entity.getConfig().name);
+            }
+            return JSON.stringify(result);
+        } finally {
+            await this.rollbackTransaction();
+        }
+    }
+
+    async import(data) {
+        /* TODO Seria bom que a importação fosse realmente uma importação; hoje ela substitui os dados pelos que vieram.
+                Problema: o insert causa erro porque a entidade já vem com id. Poderia desabilitar, mas isso poderia causar inconsistência.
+                Parece um problema insolúvel por precisar conhecer os dados que vêm.
+                Problema de não fazer: os dados importados podem ser inconsistentes.
+        */
+        for (const entity of this.getConfig().entities){
+            await this.beginTransaction();
+            try {
+                const key = entity.getConfig().name;
+                if (data[key]) {
+                    this.#transactionData[entity.getConfig().name] = data[key];
+                }
+            } finally {
+                await this.commitTransaction();
+            }
+        }
+    }
+
+    async truncate() {
+        await this.beginTransaction();
+        try {
+            for (const entity of this.getConfig().entities){
+                this.#transactionData[entity.getConfig().name] = [];
+            }
+        } finally {
+            await this.commitTransaction();
+        }
     }
 }
 

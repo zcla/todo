@@ -111,7 +111,7 @@ class Todo {
     setupBackendTodo() {
         return new BackendLocalStorage({
             entities: [
-                new BackendLocalStorage.BackendLocalEntity({
+                new BackendJson.BackendLocalEntity({
                     name: 'Tarefa',
                     properties: [
                         new Backend.Entity.Property({

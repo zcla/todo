@@ -166,11 +166,7 @@
     }
 }
 
-// TODO Mover pra cá tudo o que não faz referência a localStorage; fazer BackendLocalStorage extends BackendJson.
-// class BackendJson extends Backend {
-// }
-
-class BackendLocalStorage extends Backend {
+class BackendJson extends Backend {
     static BackendLocalEntity = class extends Backend.Entity {
         #backend = null;
 
@@ -187,18 +183,22 @@ class BackendLocalStorage extends Backend {
     }
 
     #transactionData = null;
+    getTransactionData(entityName) {
+        if (entityName) {
+            return this.#transactionData[entityName];
+        } else {
+            return this.#transactionData;
+        }
+    }
+    setTransactionData(entityName, transactionData) {
+        this.#transactionData[entityName] = transactionData;
+    }
+    clearTransactionData() {
+        this.#transactionData = null;
+    }
 
     async select(entityName) {
-        const entity = await super.select(entityName);
-        const id = entity.getConfig().name;
-        if (!this.#transactionData[id]) {
-            let json = localStorage[entity.getConfig().name];
-            if (json === undefined) {
-                json = '[]';
-            }
-            this.#transactionData[id] = JSON.parse(json);
-        }
-        return this.#transactionData[id];
+        return await super.select(entityName);
     }
 
     async insert(entityName, properties) {
@@ -251,20 +251,6 @@ class BackendLocalStorage extends Backend {
         this.#transactionData = {};
     }
 
-    async commitTransaction() {
-        console.log('commitTransaction()');
-        super.commitTransaction();
-        for (const entityName of Object.keys(this.#transactionData)) {
-            const data = this.#transactionData[entityName];
-            if (data.length) {
-                localStorage[entityName] = JSON.stringify(data);
-            } else {
-                localStorage.removeItem(entityName);
-            }
-        }
-        this.#transactionData = null;
-    }
-
     async rollbackTransaction() {
         console.log('rollbackTransaction()');
         super.rollbackTransaction();
@@ -312,6 +298,35 @@ class BackendLocalStorage extends Backend {
         } finally {
             await this.commitTransaction();
         }
+    }
+}
+
+class BackendLocalStorage extends BackendJson {
+    async select(entityName) {
+        const entity = await super.select(entityName);
+        const id = entity.getConfig().name;
+        if (!this.getTransactionData(id)) {
+            let json = localStorage[entity.getConfig().name];
+            if (json === undefined) {
+                json = '[]';
+            }
+            this.setTransactionData(id, JSON.parse(json));
+        }
+        return this.getTransactionData(id);
+    }
+
+    async commitTransaction() {
+        console.log('commitTransaction()');
+        super.commitTransaction();
+        for (const entityName of Object.keys(this.getTransactionData())) {
+            const data = this.getTransactionData(entityName);
+            if (data.length) {
+                localStorage[entityName] = JSON.stringify(data);
+            } else {
+                localStorage.removeItem(entityName);
+            }
+        }
+        this.clearTransactionData();
     }
 }
 

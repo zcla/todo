@@ -1,0 +1,57 @@
+# Para criar => https://api.npoint.io/
+
+
+
+@urlPublic = https://api.npoint.io/7add288364ef0439a936
+
+### select
+GET {{urlPublic}}
+
+### select
+GET {{urlPublic}}/Tarefa
+
+### update
+POST {{urlPublic}}
+Content-Type: application/json
+
+{
+    "Tarefa": [
+        {
+            "id":"8940c872-fcf2-44c9-9578-ec554a13d22d",
+            "nome":"Teste!",
+            "notas":"",
+            "peso":-2,
+            "cumprida":false
+        }
+    ]
+}
+
+
+
+# Para criar => https://api.npoint.io/
+#@url = https://api.npoint.io/7ba4d63c362a590bf3c8
+@urlPrivate = https://api.npoint.io/7ba4d63c362a590bf3c8
+@auth = emVjbGF1ZGlvYWd1aWFyQGdtYWlsLmNvbTpuNWlWbXgjbSNEQDYmMg==
+
+### select
+GET {{urlPrivate}}
+
+### select
+GET {{urlPrivate}}/Tarefa
+
+### update
+POST {{urlPrivate}}
+Content-Type: application/json
+Authorization: Basic emVjbGF1ZGlvYWd1aWFyQGdtYWlsLmNvbTpuNWlWbXgjbSNEQDYmMg==
+
+{
+    "Tarefa": [
+        {
+            "id":"8940c872-fcf2-44c9-9578-ec554a13d22d",
+            "nome":"Teste!",
+            "notas":"",
+            "peso":-2,
+            "cumprida":false
+        }
+    ]
+}

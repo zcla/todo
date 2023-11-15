@@ -109,7 +109,8 @@ class Todo {
     }
 
     setupBackendTodo() {
-        return new BackendLocalStorage({
+        // return new BackendLocalStorage({
+        return new BackendNpoint({
             entities: [
                 new BackendJson.BackendLocalEntity({
                     name: 'Tarefa',
@@ -135,7 +136,12 @@ class Todo {
                     ]
                 })
             ]
-        });
+        // }); // BackendLocalStorage
+        }, 'https://api.npoint.io/xxxx'); // BackendNpoint
+        // TODO A URL acima não pode ficar no fonte, claro!
+        // TODO Público: xxxx
+        // TODO Privado: xxxx
+        // TODO Ver se o POST funciona quando é privado.
     }
 
     setupFrontendTarefasCrud(bTodo) {

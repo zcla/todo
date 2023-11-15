@@ -110,6 +110,7 @@
             throw new Error('The backend is already in a transaction.');
         }
         this.#intransaction = true;
+        console.log('beginTransaction()');
     }
 
     async commitTransaction() {
@@ -117,6 +118,7 @@
             throw new Error('The backend is not in a transaction.');
         }
         this.#intransaction = false;
+        console.log('commitTransaction()');
     }
 
     async rollbackTransaction() {
@@ -124,6 +126,7 @@
             throw new Error('The backend is not in a transaction.');
         }
         this.#intransaction = false;
+        console.log('rollbackTransaction()');
     }
 
     async select(entityName) {
@@ -246,14 +249,16 @@ class BackendJson extends Backend {
     }
 
     async beginTransaction() {
-        console.log('beginTransaction()');
-        super.beginTransaction();
+        await super.beginTransaction();
         this.#transactionData = {};
     }
 
+    async commitTransaction() {
+        await super.commitTransaction();
+    }
+
     async rollbackTransaction() {
-        console.log('rollbackTransaction()');
-        super.rollbackTransaction();
+        await super.rollbackTransaction();
         this.#transactionData = null;
     }
 
@@ -304,20 +309,19 @@ class BackendJson extends Backend {
 class BackendLocalStorage extends BackendJson {
     async select(entityName) {
         const entity = await super.select(entityName);
-        const id = entity.getConfig().name;
-        if (!this.getTransactionData(id)) {
+        entityName = entity.getConfig().name;
+        if (!this.getTransactionData(entityName)) {
             let json = localStorage[entity.getConfig().name];
             if (json === undefined) {
                 json = '[]';
             }
-            this.setTransactionData(id, JSON.parse(json));
+            this.setTransactionData(entityName, JSON.parse(json));
         }
-        return this.getTransactionData(id);
+        return this.getTransactionData(entityName);
     }
 
     async commitTransaction() {
-        console.log('commitTransaction()');
-        super.commitTransaction();
+        await super.commitTransaction();
         for (const entityName of Object.keys(this.getTransactionData())) {
             const data = this.getTransactionData(entityName);
             if (data.length) {
@@ -330,4 +334,37 @@ class BackendLocalStorage extends BackendJson {
     }
 }
 
-// TODO Criar Backend json: https://jsonkeeper.com/b/O3AP e https://api.jsonserve.com/FCiKcB
+class BackendNpoint extends BackendJson {
+    constructor(config, baseURL) {
+        super(config);
+        this.#baseURL = baseURL;
+    }
+
+    #baseURL = null;
+
+    async select(entityName) {
+        await super.select(entityName);
+        if (!this.getTransactionData(entityName)) {
+            let json = await $.getJSON(`${this.#baseURL}/${entityName}`);
+            if (json === undefined) {
+                json = []; // TODO Tem que dar um alerta pria criar aqui: https://api.npoint.io/
+            }
+            this.setTransactionData(entityName, json);
+        }
+        return this.getTransactionData(entityName);
+    }
+
+    async commitTransaction() {
+        await super.commitTransaction();
+        // TODO https://api.jquery.com/jquery.post/
+        // for (const entityName of Object.keys(this.getTransactionData())) {
+        //     const data = this.getTransactionData(entityName);
+        //     if (data.length) {
+        //         localStorage[entityName] = JSON.stringify(data);
+        //     } else {
+        //         localStorage.removeItem(entityName);
+        //     }
+        // }
+        // this.clearTransactionData();
+    }
+}

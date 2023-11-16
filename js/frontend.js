@@ -42,6 +42,7 @@
             }
             msg = `${msg.message}<br><pre class="erro">${htmlStack}</pre>`;
         }
+		debugger;
         this.addMessage('danger', `Erro interno da aplicação! ${EmojiUtils.grimacing_face}`, msg);
     }
 }

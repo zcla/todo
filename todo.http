@@ -31,6 +31,7 @@ Content-Type: application/json
 # Para criar => https://api.npoint.io/
 #@url = https://api.npoint.io/7ba4d63c362a590bf3c8
 @urlPrivate = https://api.npoint.io/7ba4d63c362a590bf3c8
+# Não se preocupe com a senha em claro. Além de ser só um teste besta, ela já foi alterada. :)
 @auth = emVjbGF1ZGlvYWd1aWFyQGdtYWlsLmNvbTpuNWlWbXgjbSNEQDYmMg==
 
 ### select
